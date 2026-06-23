@@ -1,0 +1,298 @@
+@import url("cmsBasic.css");
+@import url("cmsBoard.css");
+
+/*-------------------------------------------------
+Author : KLIC
+Create date : 2020. 05. 19. SY,CHo
+-------------------------------------------------*/
+
+/* ========================================== BODY */
+
+#wrap {display: flex; width: 100%; min-height: 100vh; transition: all 0.35s; -webkit-transition: all 0.35s;}
+
+/* ========================================== ì¢Œì¸¡ì˜ì—­ */
+aside {position: fixed;top: 0;left: -12.5rem;display: flex;flex-direction: column;justify-content: space-between;width: 12.5rem;background: var(--bgGray);border-right: 1px solid var(--brdrGray);height: 100vh;transition: all 0.35s;-webkit-transition: all 0.35s;}
+aside .asideTop .logo {display: flex;justify-content: center;align-items: center;padding: 1rem 1.5rem;height: 7.5rem;}
+aside .asideTop .logo > a {display: block; width: 100%;}
+aside .asideTop nav {border-top: 1px solid var(--brdrGray);padding: 1rem 1.5rem;}
+aside .asideTop nav > ul {padding: 1rem 0; font-size: 1rem;}
+aside .asideTop nav > ul > li > a {display: flex; align-items: flex-start; padding: 0.75rem 0;}
+aside .asideTop nav > ul > li .submenu {padding: 0.5rem 1rem; background-color: #fff; border-radius: 0.25rem;}
+aside .asideTop nav > ul > li .submenu a {display: block; padding: 0.25rem 0; font-size: 0.9rem;}
+aside .asideTop nav > ul > li .submenu .active > a {font-weight: 700; color: var(--brdrBlue);}
+aside .asideTop nav > ul > li.active > a {font-weight: 700; color: #333;}
+aside footer {padding: 1rem; text-align: center;}
+aside footer .copyright {font-size: 0.75rem; line-height: 1.23;}
+
+
+/* ========================================== 메인메뉴 */
+
+#mainMenu {width: 100%; color: #333; transition: all 0.25s; -webkit-transition: all 0.25s;}
+#mainMenu a {position: relative; display: block;}
+#mainMenu .gnb > li > a {font-size: 0.75rem;font-weight: 500;height: 2.25rem;line-height: 2.25rem;}
+/*
+#mainMenu .gnb > li > a .icons {display: inline-block; margin-right: 0.5rem; width: 0.8rem; height: 0.8rem; vertical-align: middle; background: url(/images/web/apple/main/icons1.png) no-repeat; background-size: 8.8rem auto;}
+#mainMenu .gnb > li > a .icon01 {background-position: 0 0;}
+#mainMenu .gnb > li > a .icon02 {background-position: -0.8rem 0;}
+#mainMenu .gnb > li > a .icon03 {background-position: -1.6rem 0;}
+#mainMenu .gnb > li > a .icon04 {background-position: -2.4rem 0;}
+#mainMenu .gnb > li > a .icon05 {background-position: -3.2rem 0;}
+#mainMenu .gnb > li > a .icon06 {background-position: -4rem 0;}
+#mainMenu .gnb > li > a .icon07 {background-position: -4.8rem 0;}
+#mainMenu .gnb > li > a .icon08 {background-position: -5.6rem 0;}
+#mainMenu .gnb > li > a .icon09 {background-position: -6.4rem 0;}
+#mainMenu .gnb > li > a .icon10 {background-position: -7.2rem 0;}
+#mainMenu .gnb > li > a .icon11 {background-position: -8rem 0;}
+*/
+#mainMenu .gnb .dep2 {display: none;padding: 0.5rem 1rem;color: #444;background: #fafafa;/* border-bottom: 1px solid #e7e7e7; */border-radius: 0.5rem;}
+#mainMenu .gnb .dep2 > li > a {height: 1.5rem;line-height: 1.5rem;}
+/* #mainMenu .gnb .dep2 > li > a:after {position: absolute; top: 0; right: 0.65rem; font-family: 'xeicon'; color: #fff; content: "\ea3e";} */
+
+#mainMenu .gnb > li.active > a, #mainMenu .gnb > li > a:hover {color: #0081dd;}
+/*
+#mainMenu .gnb > li.active > a .icon01, #mainMenu .gnb > li > a:hover .icon01 {background-position: 0 -0.8rem;}
+#mainMenu .gnb > li.active > a .icon02, #mainMenu .gnb > li > a:hover .icon02 {background-position: -0.8rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon03, #mainMenu .gnb > li > a:hover .icon03 {background-position: -1.6rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon04, #mainMenu .gnb > li > a:hover .icon04 {background-position: -2.4rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon05, #mainMenu .gnb > li > a:hover .icon05 {background-position: -3.2rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon06, #mainMenu .gnb > li > a:hover .icon06 {background-position: -4rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon07, #mainMenu .gnb > li > a:hover .icon07 {background-position: -4.8rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon08, #mainMenu .gnb > li > a:hover .icon08 {background-position: -5.6rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon09, #mainMenu .gnb > li > a:hover .icon09 {background-position: -6.4rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon10, #mainMenu .gnb > li > a:hover .icon10 {background-position: -7.2rem -0.8rem;}
+#mainMenu .gnb > li.active > a .icon11, #mainMenu .gnb > li > a:hover .icon11 {background-position: -8rem -0.8rem;}
+*/
+#mainMenu .gnb > li.active .dep2 {display: block;}
+#mainMenu .gnb .dep2 > li.active > a, #mainMenu .gnb .dep2 > li > a:hover {
+    color: #0081dd;
+}
+/* ========================================== 우측영역 */
+
+#container {flex-shrink: 0;width: 100%;padding: 1rem 3rem 2rem;transition: all 0.35s;-webkit-transition: all 0.35s;margin-left: 0;}
+
+#wrap.active .MC_notice .allMenu:before {content: "\e906";}
+#wrap.active > aside {left: 0;}
+#wrap.active > #container {width: calc(100% - 12.5rem);margin-left: 12.5rem;}
+
+/* ========================================== HEADER */
+
+#header {position: relative;display: flex;justify-content: space-between;}
+#header .logo {position: absolute; top: 0.5rem; left: 1.5rem;}
+#header .logo a {display: block; width: 8.75rem; height: 2rem; color: transparent; background: url(/images/web/apple/layout/logo.png) no-repeat left top / 100%; overflow: hidden;}
+#header a:hover,
+#header a:focus{ text-decoration: underline;}
+
+#util {position: absolute; top: 0; right: 0; display: inline-block; height: 3rem; font-size:0;}
+#util > p { height:100%; display:inline-block;}
+#util > p > a{/* color:#fff; */line-height:3rem;padding: 0 0.75rem;font-size: 0.75rem;}
+#util > p:nth-of-type(1){/* background:#3256ca; */} 
+#util > p:nth-of-type(2){/* background:#344784; */} 
+#util .userInfo{display:inline-block;/* margin-left:2rem; */vertical-align: top;}
+#util .userInfo > li {float: left;font-size: 0.7rem;line-height:3rem;}
+#util .userInfo > li ~ li{margin-left: 0.5rem;}
+#util .userInfo > li > a {position: relative;display: inline-block;/* padding-right: 1.5rem; */}
+#util .userInfo > li > .icons:before {display:inline-block;margin-right: 0.25rem;/* width: 1.25rem; *//* height: 1.5rem; *//* line-height: 1.4rem; *//* text-align: center; */font-family: 'xeicon';font-size: 0.9rem;/* border: 0.05rem solid #fff; *//* border-radius: 50%; *//* margin-right:5px; */vertical-align: middle;}
+#util .icon01:before {content: "\ea94";}
+#util .icon02:before {content: "\e9f3";}
+#util .icon02:after {/* position: absolute; *//* top: 0; *//* right: 1rem; */font-family: 'xeicon';content: "\e936";display: inline-block;margin-left: 0.5rem;}
+#util .icon03:before {content: "\eada";}
+
+#boxAdmin {position: absolute;top: 3rem;right: 1.5rem;height: 0;line-height: 1.5;color: #044ca4;background: #fff;border: 1px solid var(--brdrDarkGray);border-radius: 0.5rem;overflow: hidden;z-index: 1;opacity: 0;visibility: hidden;transition: all 0.25s;-webkit-transition: all 0.25s;}
+#boxAdmin:after {position: absolute;top: -6px;right: 1rem;width: 10px;height: 10px;background: #fff;border-top: 1px solid var(--brdrDarkGray);border-right: 1px solid var(--brdrDarkGray);content: "";transform: rotate(-45deg);-webkit-transform: rotate(-45deg);}
+#boxAdmin .memInfo {position: relative; padding: 1rem 1rem 1rem 4.5rem; min-width: 13rem;}
+#boxAdmin .memInfo .memPhoto {position: absolute; top: 50%; left: 1rem; display: inline-block; margin-top: -1.25rem; width: 2.5rem; height: 2.5rem; background: #fafafa; border: 1px solid #dcdcdc; border-radius: 50%; overflow: hidden;}
+#boxAdmin .memInfo .memPhoto:before {position: absolute; top: 0; left: 0;
+	width: 2.5rem;
+	height: 2.5rem;
+	line-height: 2.5rem;
+	text-align: center;
+	font-family: 'remixicon';
+	font-size: 1.8rem;
+	color: #275CD4;
+	content: "\f264";
+}
+#boxAdmin .memInfo .memPhoto img {max-width: 100%;}
+#boxAdmin .memInfo .memName strong {font-size: 0.75rem; color: #000;}
+#boxAdmin .memInfo .memBtn {margin-top: 0.5rem;}
+#boxAdmin .memInfo .btnLog {padding: 0.25rem 0.5rem;font-size: 0.6rem;color: #676767;background: #fafafa;border: 1px solid var(--brdrDarkGray);border-radius: 0.25rem;}
+#boxAdmin .conInfo {padding: 0.5rem 1rem;background: var(--bgGray);border-top: 1px dashed var(--brdrDarkGray);border-bottom-left-radius: 0.5rem;border-bottom-right-radius: 0.5rem;}
+#boxAdmin .conInfo strong {color: #000;font-weight: 500;}
+/* active */
+#boxAdmin.active {height: auto; overflow: visible; opacity: 1; visibility: visible;}
+
+/* ========================================== 컨텐츠 공통 */
+
+/* NOTICE */
+.MC_notice {display: flex; justify-content: space-between; height: 3rem;}
+.MC_notice .allMenu {position: relative;display: inline-block;margin-right: 0.25rem;width: 3.3rem;height: 3.3rem;line-height: 1.7rem;color: transparent;border: 1px solid #dcdcdc;border-radius: 0.5rem;overflow: hidden;}
+.MC_notice .allMenu:before {position: absolute;top: 0;left: 0;width: 100%;height: 100%;line-height: 2.1;text-align: center;font-family: 'xeicon';font-size: 1.5rem;color: #666;content: "\e91c";transition: all 0.35s;-webkit-transition: all 0.35s;}
+.MC_notice .allMenu:hover {border-color: var(--color01);}
+.MC_notice .allMenu:hover:before {color: var(--color01);}
+.MC_notice .notice {display: flex; align-items: center; gap: 0.8rem; padding: 1rem; width: calc(25% - 12px); height: 3.25rem; min-width: 500px; background: #f9f9f9; border: 1px solid #e7e7e7; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.0666666667);}
+.MC_notice .notice h3 {height: 1.5rem; line-height: 1.5rem; font-size: 0.9rem; font-weight: 700; color: #000;}
+.MC_notice .notice .slideBox {display: block; width: 100%; height: 1.5rem; line-height: 1.5rem; overflow: hidden;}
+.MC_notice .notice .btns {display: flex; gap: 0.15rem; margin: 0; width: 2.75rem;}
+.MC_notice .notice .btns a {position: relative; display: inline-block; width: 1.3rem; height: 1.3rem; color: transparent;}
+.MC_notice .notice .btns a:after {position: absolute; top: 0; left: 0; width: 100%; height: 100%; line-height: 1.1rem; text-align: center; font-family: 'xeicon'; font-size: 0.9rem; color: rgba(0,0,0,0.88); background: #fff; border: 1px solid #e5e7eb; border-radius: 0.25rem; overflow: hidden;}
+.MC_notice .notice .btns .prev:after {content: "\e946";}
+.MC_notice .notice .btns .next:after {content: "\e943";}
+
+.MC_notice .notice .btns a:focus:after,
+.MC_notice .notice .btns a:hover:after {color: #4096ff; border-color: #4096ff;}
+
+/* b-popup */
+.sysPstyle {
+	opacity: 0;
+	position: relative;
+	width: auto;
+	max-width: 60rem;
+	padding-top: 3rem;
+	background-color: #fff;
+	border-radius: 0.75rem;
+	overflow: hidden;
+}
+.sysPstyle h4 {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	padding: 1rem 1.5rem;
+	color: #fff;
+	font-size: 1rem;
+	font-weight: 600;
+	background: var(--brdrBlue);
+}
+.sysPstyle > div {
+	height: 100%;
+}
+.sysPstyle .sysPwrap {
+	height: 100%;
+	overflow-y: auto;
+}
+.sysPstyle .sysPwrap .inner {
+	padding: 1.5rem;
+}
+.sysPstyle .sysPclose {
+	position: absolute;
+	right: 1rem;
+	top: 0.5rem;
+	width: 2rem;
+	height: 2rem;
+	line-height: 2rem;
+	text-align: center;
+	font-size: 1.1rem;
+	color: #fff;
+	border-radius: 50%;
+	background: none;
+}
+.sysPstyle .sysPclose:hover,
+.sysPstyle .sysPclose:focus {
+	opacity: 1;
+}
+.sysPstyle .bbs_srch {
+	border-radius: 0.5rem;
+	padding: 0.75rem 1rem;
+}
+.sysPstyle .bbs_srch h5 {
+	display: inline-block;
+	font-size: 0.8rem;
+	font-weight: 400;
+	margin-right: 0.5rem;
+}
+.sysPstyle .bbs_srch .srchForm {
+	width: 60%;
+}
+.sysPstyle .bbs_srch button {
+	line-height: 2rem;
+	padding: 0 0.5rem;
+	min-width: 4rem;
+    color: #fff;
+	background: #054ca4;
+    border: 1px solid #054ca4;
+    border-radius: 0.5rem;
+}
+
+/* b-popup : 시스템전환 */
+.sysChange {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	margin: 1rem 0;
+}
+.sysChange li {
+	width: 49%;
+}
+.sysChange li a {
+	display: block;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	border-radius: 0.5rem;
+	font-size: 0.75rem;
+	padding: 0.5rem;
+	margin: 0.25rem 0;
+	color: #122b53;
+	border: 1px solid #ddd;
+}
+.sysChange li em {
+	width: 1.75rem;
+	height: 1.75rem;
+	line-height: 1.75rem;
+	text-align: center;
+	font-size: 0.8rem;
+	font-weight: 400;
+	background: #eee;
+	color: #232d51;
+	border-radius: 50%;
+}
+.sysChange li p {
+	width: calc(100% - 7rem);
+	text-align: left;
+	line-height: 1.6;
+}
+.sysChange li span {
+	display: inline-block;
+	min-width: 4rem;
+	padding: 0.75rem 1rem;
+	font-weight: 400;
+	margin: 2px 1px;
+	text-align: center;
+	border-radius: 4px;
+	background: #f5f5f5;
+	border-radius: 0.5rem;
+	color: #666;
+	font-size: 0.75rem;
+}
+.sysChange li a:hover,
+.sysChange li a:focus {
+	border-color: #f1f5fe;
+	background: #f1f5fe;
+	box-shadow: 0 0 5px rgba(0, 0, 0, 0.25);
+}
+.sysChange li a:hover em,
+.sysChange li a:focus em {
+	background: #d4e5ff;
+}
+.sysChange li a:hover span,
+.sysChange li a:focus span {
+	background: #054ca4;
+	color: #fff;
+}
+.sysChange a,
+.sysChange a em,
+.sysChange a span {
+	transition: all 0.2s;
+	-webkit-transition: all 0.2s;
+}
+
+@media screen and (max-width: 1280px){
+	.MC_notice .notice {width: calc(100% - 3rem);}
+}
+
+@media screen and (max-width: 768px){
+	/* ========================================== HEADER */
+	#util > li > a {padding: 0; width: 2rem; height: 3rem; color: transparent;}
+	#util > li > a:after {color: #fff;}
+	#boxAdmin {right: 0;}
+}

@@ -1,0 +1,40 @@
+{
+  "name": "tableeditor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTML Table Editor",
+  "author": "shin",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "bundle": "vite build --config vite.standalone.config.mjs"
+  },
+  "dependencies": {
+    "isomorphic-dompurify": "^2.30.0",
+    "jodit-react": "^5.2.38",
+    "js-beautify": "^1.15.4",
+    "next": "^16.0.8",
+    "prettier": "^3.0.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "remixicon": "^4.9.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.5",
+    "@babel/preset-react": "^7.28.5",
+    "@eslint/eslintrc": "^3.3.3",
+    "@types/js-beautify": "^1.14.3",
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.10",
+    "@vitejs/plugin-react": "^6.0.2",
+    "css-loader": "^7.1.4",
+    "mini-css-extract-plugin": "^2.10.2",
+    "typescript": "5.9.3",
+    "vite": "^8.0.14",
+    "webpack": "^5.107.1",
+    "webpack-cli": "^7.0.2"
+  }
+}

@@ -1,0 +1,32 @@
+@charset "utf-8";
+/* jodit */
+.toast-popup {position: fixed;bottom: 50px;left: 50%;transform: translateX(-50%);background-color: rgba(33, 33, 33, 0.9);color: white;padding: 0.6rem 1.2rem;border-radius: 2.5rem;font-size: 0.9rem;font-weight: 600;z-index: 9999;box-shadow: 0 4px 10px rgba(0,0,0,0.2);animation: fadeInOut 2s ease-in-out forwards;pointer-events: none;}
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translate(-50%, 20px); }
+  10% { opacity: 1; transform: translate(-50%, 0); }
+  90% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+.jodit-wrapper {height: 100%;}
+.jodit-source__mirror-fake {font-family: 'Pretendard' !important;font-size: 14px !important;line-height: 1.2 !important;background-color: #1e1e1e !important; color: #d4d4d4 !important; }
+/* .jodit-toolbar-button__icon {width: 0.8rem;height: 0.8rem;} */
+.jodit-source * {font: 12px/ normal 'Pretendard' !important;}
+.jodit-source__mirror, 
+.jodit-source__mirror-editor,
+.jodit-source__mirror {font-family: Pretendard !important;letter-spacing: normal !important;word-spacing: normal !important;font-size: 0.8rem !important;line-height: 1.6 !important;padding: 0.5rem !important; border:none !important; height: 100% !important;}
+.jodit-ui-search__box {z-index:11;}
+
+.jodit-toolbar__box:not(:empty) {background-color:#fff !important;border-radius:0.4rem 0.4rem 0 0!important; padding:0.1rem;}
+.jodit-toolbar__box:not(:empty) .jodit-toolbar-editor-collection:after {display: none;}
+.jodit-container:not(.jodit_inline) {border-radius:0.4rem 0.4rem 0.75rem 0.75rem !important;}
+.jodit-toolbar-collection_size_middle.jodit-toolbar-collection_mode_horizontal, .jodit-toolbar-collection_size_middle.jodit-toolbar-editor-collection_mode_horizontal, .jodit-toolbar-editor-collection_size_middle.jodit-toolbar-collection_mode_horizontal, .jodit-toolbar-editor-collection_size_middle.jodit-toolbar-editor-collection_mode_horizontal {background-image: none !important;}
+.jodit-workplace { flex: 1 !important; height: auto !important; overflow-y: auto !important; border-radius:0 0 0.75rem 0.75rem!important;}
+.jodit-react-container { height: 100% !important;}
+.jodit-container { height: 100% !important; display: flex !important; flex-direction: column !important; }
+
+.jodit-context table tr td,
+.jodit-context table tr th,
+.jodit-wysiwyg table tr td,
+.jodit-wysiwyg table tr th {user-select: unset !important;}
+
+
