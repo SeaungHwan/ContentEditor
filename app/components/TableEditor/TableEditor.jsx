@@ -173,12 +173,12 @@ function TableEditor({ initialHtml = '', onChange }) {
             if (!e.ctrlKey || !e.shiftKey) return;
             switch (e.key.toLowerCase()) {
                 case 'c': e.preventDefault(); handleCopyRef.current(); break;
-                case 'k': e.preventDefault(); handleManualCleanRef.current()?.then?.(() => setTimeout(() => runHeadingDetectRef.current(), 150)); break;
-                case 'p': e.preventDefault(); toggleModal('preview', true); break;
+                case 'z': e.preventDefault(); handleManualCleanRef.current()?.then?.(() => setTimeout(() => runHeadingDetectRef.current(), 150)); break;
+                case 'x': e.preventDefault(); toggleModal('preview', true); break;
             }
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', handleKeyDown, true);
+        return () => document.removeEventListener('keydown', handleKeyDown, true);
     }, [toggleModal]);
 
     // ===== [붙여넣기 자동 정리] ==================================================
