@@ -19,15 +19,13 @@ import TableEditModal from './modal/TableEditModal';
 import GlobalTableConfigModal from './modal/GlobalTableConfigModal';
 import ContentConfigModal from './modal/ContentConfigModal';
 import PresetsModal from './modal/PresetsModal';
-import TemplateModal from './modal/TemplateModal';
 
 import useModals from './hooks/useModals';
 import useEditorActions from './hooks/useEditorActions';
 import useAutoSave from './hooks/useAutoSave';
 import usePresets from './hooks/usePresets';
 import GlobalLoader from '../loading/GlobalLoader';
-import { wrapWithTheme, unwrapThemeDiv } from './utils/themeWrapper';
-import { fillSeqInTable, sortTableByCol, getColHeaders } from './utils/tableEditUtils';
+import { fillSeqInTable } from './utils/tableEditUtils';
 import { getDOMParser } from './utils/htmlCleaners';
 import { extractHeadingCandidates } from './utils/headingExtractor';
 
@@ -35,15 +33,15 @@ import { extractHeadingCandidates } from './utils/headingExtractor';
 const TOC_SELECTOR = 'h2, h3, h4, h5, table, ul, ol';
 const HEADING_INDENT = { h2: 0, h3: 1, h4: 2, h5: 3 };
 
-export default function TableEditorWrapper() {
+export default function TableEditorWrapper({ initialHtml = '', onChange }) {
     return (
         <TableConfigProvider>
-            <TableEditor />
+            <TableEditor initialHtml={initialHtml} onChange={onChange} />
         </TableConfigProvider>
     );
 }
 
-function TableEditor({ initialHtml = '' }) {
+function TableEditor({ initialHtml = '', onChange }) {
     const config = useTableConfig();
     const { updateConfig, updateMultipleConfig } = useTableConfigDispatch();
     const [content, setContent] = useState(initialHtml);
@@ -75,8 +73,6 @@ function TableEditor({ initialHtml = '' }) {
     const [conversionHistory, setConversionHistory] = useState([]);
 
     // 정렬 패널 상태 (선택된 표 위 오버레이에서 사용)
-    const [showSortPanel, setShowSortPanel] = useState(false);
-    const [sortState, setSortState] = useState({ colIndex: -1, direction: 'asc' });
 
     const { toast, triggerToast } = useToast();
     const {
@@ -90,28 +86,16 @@ function TableEditor({ initialHtml = '' }) {
         colWidths.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(','),
     [colWidths]);
 
-    const colorOverrideStyle = useMemo(() => {
-        const s = {};
-        if (config.primaryColor)   s['--color-primary']   = config.primaryColor;
-        if (config.secondaryColor) s['--color-secondary'] = config.secondaryColor;
-        if (config.tertiaryColor)  s['--color-tertiary']  = config.tertiaryColor;
-        if (config.accentColor)    s['--color-accent']    = config.accentColor;
-        return s;
-    }, [config.primaryColor, config.secondaryColor, config.tertiaryColor, config.accentColor]);
-
-    const hasCustomColors = Object.keys(colorOverrideStyle).length > 0;
-
     const editorClasses = useMemo(() => ({
         tit1: config.tit1Class,
         tit2: config.tit2Class,
         tit3: config.tit3Class,
-        tit4: config.tit4Class,
-    }), [config.tit1Class, config.tit2Class, config.tit3Class, config.tit4Class]);
+    }), [config.tit1Class, config.tit2Class, config.tit3Class]);
 
     const configRef = useRef(config);
     useEffect(() => { configRef.current = config; }, [config]);
 
-    const { handleClear, handleManualClean, handleCopy, handleExternalTableEdit, handleInsertTemplate } = useEditorActions({
+    const { handleClear, handleManualClean, handleCopy, handleExternalTableEdit } = useEditorActions({
         editorRef: editorComponentRef,
         config,
         formattedWidthString,
@@ -374,7 +358,7 @@ function TableEditor({ initialHtml = '' }) {
         if (!instance) return;
         const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
         if (!el) return;
-        const levelClassMap = { h2: config.tit1Class, h3: config.tit2Class, h4: config.tit3Class, h5: config.tit4Class };
+        const levelClassMap = { h3: config.tit1Class, h4: config.tit2Class, h5: config.tit3Class };
         // 되돌리기를 위해 원본 정보 보존 (후보 데이터 포함)
         const candidateData = headingCandidatesRef.current.find(c => c.id === id);
         const snapshot = { convId: id, originalTag: el.tagName.toLowerCase(), originalInner: el.innerHTML, originalClass: el.className || '', candidateData };
@@ -387,7 +371,7 @@ function TableEditor({ initialHtml = '' }) {
         setHeadingCandidates(prev => prev.filter(c => c.id !== id));
         setConversionHistory(prev => [...prev, { items: [snapshot] }]);
         triggerToast('제목으로 변환했습니다.');
-    }, [config.tit1Class, config.tit2Class, config.tit3Class, config.tit4Class, syncEditorHtml, triggerToast]);
+    }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
 
     // 개별 무시 (마커만 제거)
     const handleCandidateDismiss = useCallback((id) => {
@@ -404,7 +388,7 @@ function TableEditor({ initialHtml = '' }) {
         const candidates = headingCandidatesRef.current;
         const instance = editorComponentRef.current?.getInstance();
         if (!instance || !candidates.length) return;
-        const levelClassMap = { h2: config.tit1Class, h3: config.tit2Class, h4: config.tit3Class, h5: config.tit4Class };
+        const levelClassMap = { h3: config.tit1Class, h4: config.tit2Class, h5: config.tit3Class };
         const snapshots = [];
         candidates.forEach((cand) => {
             const { id, suggestedLevel } = cand;
@@ -421,7 +405,7 @@ function TableEditor({ initialHtml = '' }) {
         if (snapshots.length) setConversionHistory(prev => [...prev, { items: snapshots }]);
         triggerToast(`${candidates.length}개를 제목으로 변환했습니다.`);
         setHeadingCandidates([]);
-    }, [config.tit1Class, config.tit2Class, config.tit3Class, config.tit4Class, syncEditorHtml, triggerToast]);
+    }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
 
     // 전체 무시
     const handleCandidateDismissAll = useCallback(() => {
@@ -485,10 +469,10 @@ function TableEditor({ initialHtml = '' }) {
         if (!instance || !selectedTableNode) return;
 
         const newNode = document.createElement('div');
-        newNode.className = 'box-st rsp_img ac';
+        newNode.className = 'box_st2 rsp_img ac';
         newNode.innerHTML = '\n    <img src="https://placehold.co/200x200" alt="">\n';
 
-        const wrapperDiv = selectedTableNode.closest('div.tbl-st, div.box-st');
+        const wrapperDiv = selectedTableNode.closest('div.tbl-st, div.box-st, div.box_st2');
         (wrapperDiv || selectedTableNode).replaceWith(newNode);
         const newHtml = instance.editor.innerHTML;
         instance.value = newHtml;
@@ -514,74 +498,28 @@ function TableEditor({ initialHtml = '' }) {
     }, [selectedTableNode, triggerToast]);
 
     // ===== [행 정렬] =============================================================
-    const colHeaders = useMemo(() => {
-        if (!selectedTableNode) return [];
-        return getColHeaders(selectedTableNode);
-    }, [selectedTableNode]);
 
-    const handleSort = useCallback((colIndex) => {
-        const instance = editorComponentRef.current?.getInstance();
-        if (!instance || !selectedTableNode) return;
+    // ===== [onChange 콜백] ======================================================
+    const onChangeRef = useRef(onChange);
+    useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-        const newDir = sortState.colIndex === colIndex && sortState.direction === 'asc' ? 'desc' : 'asc';
-        setSortState({ colIndex, direction: newDir });
-
-        sortTableByCol(selectedTableNode, colIndex, newDir);
-        const newHtml = instance.editor.innerHTML;
-        instance.value = newHtml;
-        instance.events.fire('change');
-        if (editorComponentRef.current.setFullContent) editorComponentRef.current.setFullContent(newHtml);
-        setContent(newHtml);
-        triggerToast(`${colHeaders[colIndex]?.label || (colIndex + 1) + '열'} 기준 ${newDir === 'asc' ? '오름차순' : '내림차순'} 정렬`);
-        setShowSortPanel(false);
-    }, [selectedTableNode, sortState, colHeaders, triggerToast]);
-
-    // 표 선택 해제 시 정렬 패널도 닫기
     useEffect(() => {
-        if (!selectedTableNode) setShowSortPanel(false);
-    }, [selectedTableNode]);
-
-    // ===== [템플릿 삽입] =========================================================
-    const handleTemplateInsert = useCallback(async (templateHtml) => {
-        toggleModal('template', false);
-        setIsCleaning(true);
-        try {
-            await handleInsertTemplate(templateHtml);
-        } finally {
-            setIsCleaning(false);
-        }
-    }, [handleInsertTemplate, toggleModal]);
-
-    // ===== [JSP 등록 연동] =====================================================
-    useEffect(() => {
-        window.getTableEditorHTML = () => {
-            const val = editorComponentRef.current?.getInstance()?.value;
-            if (!val) return '';
-            const doc = getDOMParser().parseFromString(unwrapThemeDiv(val), 'text/html');
-            ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id'].forEach(attr => {
-                doc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr));
-            });
-            doc.querySelectorAll('td, th').forEach(cell => {
-                if (cell.textContent.replace(/[\s ​-‍﻿]/g, '') === '' &&
-                    cell.querySelectorAll('img, iframe, table').length === 0) {
-                    cell.innerHTML = '';
-                }
-            });
-            let html = doc.body.innerHTML;
-            html = html.replace(/<\/table>\s*<br\s*\/?>/gi, '</table>');
-            return wrapWithTheme(html, configRef.current);
-        };
-        window.setTableEditorHTML = (html) => {
-            if (!html) return;
-            setContent(html);
-            const instance = editorComponentRef.current?.getInstance();
-            if (instance) instance.value = html;
-        };
-        return () => {
-            delete window.getTableEditorHTML;
-            delete window.setTableEditorHTML;
-        };
-    }, []);
+        if (!onChangeRef.current || !content) return;
+        const val = editorComponentRef.current?.getInstance()?.value || content;
+        const doc = getDOMParser().parseFromString(val, 'text/html');
+        ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id'].forEach(attr => {
+            doc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr));
+        });
+        doc.querySelectorAll('td, th').forEach(cell => {
+            if (cell.textContent.replace(/[\s ​-‍﻿]/g, '') === '' &&
+                cell.querySelectorAll('img, iframe, table').length === 0) {
+                cell.innerHTML = '';
+            }
+        });
+        let html = doc.body.innerHTML;
+        html = html.replace(/<\/table>\s*<br\s*\/?>/gi, '</table>');
+        onChangeRef.current(html);
+    }, [content]);
 
     useEffect(() => {
         if (isGuideMode) {
@@ -661,9 +599,7 @@ function TableEditor({ initialHtml = '' }) {
             }
             return;
         }
-        const rawContent = unwrapThemeDiv(currentContent);
-        const updatedRaw = updateStylesOnly(rawContent, config, formattedWidthString);
-        const updatedHtml = wrapWithTheme(updatedRaw, config);
+        const updatedHtml = updateStylesOnly(currentContent, config, formattedWidthString);
         if (updatedHtml !== currentContent) {
             instance.value = updatedHtml;
             if (isEditorFocused && markers) {
@@ -754,14 +690,6 @@ function TableEditor({ initialHtml = '' }) {
                     handleCopy={handleCopy}
                     handleClear={handleClear}
                     handleManualClean={handleManualCleanAndDetect}
-                    onTemplateOpen={() => toggleModal('template', true)}
-                    theme={config.theme}
-                    onThemeChange={(t) => updateMultipleConfig({ theme: t, primaryColor: '', secondaryColor: '', tertiaryColor: '', accentColor: '' })}
-                    primaryColor={config.primaryColor}
-                    secondaryColor={config.secondaryColor}
-                    tertiaryColor={config.tertiaryColor}
-                    accentColor={config.accentColor}
-                    onColorChange={(key, val) => updateConfig(key, val)}
                     stats={stats}
                 />
 
@@ -777,7 +705,7 @@ function TableEditor({ initialHtml = '' }) {
                 )}
 
                 <div className={layout.editorArea}>
-                    <div ref={editBoxRef} data-theme={hasCustomColors ? undefined : config.theme} style={colorOverrideStyle} className={`${layout.editBox} ${isGuideMode ? `${layout.guideTarget} ${layout.guideCenter}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.editorConfig : undefined} >
+                    <div ref={editBoxRef} className={`${layout.editBox} ${isGuideMode ? `${layout.guideTarget} ${layout.guideCenter}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.editorConfig : undefined} >
                         {tableBtnPos && (
                             <div className={layout.tableBtn} style={{ top: tableBtnPos.top, left: tableBtnPos.left }}>
                                 <div className={layout.tableBtnGroup}>
@@ -793,38 +721,6 @@ function TableEditor({ initialHtml = '' }) {
                                     <button type="button" onClick={handleReplaceWithImageBox} className={layout.Btn} title="표를 이미지 박스로 치환">
                                         <i className="ri-image-line"></i>
                                     </button>
-                                    {/* 행 정렬 */}
-                                    <div className={layout.sortBtnWrap}>
-                                        <button
-                                            type="button"
-                                            className={`${layout.Btn}${showSortPanel ? ` ${layout.BtnActive}` : ''}`}
-                                            title="열 기준 행 정렬"
-                                            onClick={() => setShowSortPanel(p => !p)}
-                                        >
-                                            <i className="ri-sort-asc"></i>
-                                        </button>
-                                        {showSortPanel && colHeaders.length > 0 && (
-                                            <div className={layout.sortPanel}>
-                                                <span>정렬 기준 열 선택</span>
-                                                <div className={layout.sortColBtns}>
-                                                    {colHeaders.map(col => (
-                                                        <button
-                                                            key={col.index}
-                                                            type="button"
-                                                            className={layout.sortColBtn}
-                                                            onClick={() => handleSort(col.index)}
-                                                            title={`${col.label} 기준 정렬`}
-                                                        >
-                                                            {col.label}
-                                                            {sortState.colIndex === col.index && (
-                                                                <i className={`ri-arrow-${sortState.direction === 'asc' ? 'up' : 'down'}-line ${layout.sortArrow}`} />
-                                                            )}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1010,15 +906,6 @@ function TableEditor({ initialHtml = '' }) {
                     presets={presets}
                     layout={layout}
                     fadeStyle={getFadeStyle('presets')}
-                />
-            )}
-            {modals.template && (
-                <TemplateModal
-                    onClose={() => toggleModal('template', false)}
-                    onInsert={handleTemplateInsert}
-                    layout={layout}
-                    fadeStyle={getFadeStyle('template')}
-                    config={config}
                 />
             )}
             {isCleaning && <GlobalLoader />}

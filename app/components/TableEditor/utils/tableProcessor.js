@@ -168,7 +168,7 @@ const applyTableFormats = (container, config, colWidths) => {
                     
                     const noUl = ulClass === UL_NONE_VALUE;
                     const noAtte = curUseAtteMarker === false;
-                    processCellContent(cell, keepMarker, false, null, null, null, null, olType, noUl, noAtte);
+                    processCellContent(cell, keepMarker, false, null, null, null, olType, noUl, noAtte);
                     applyNestedClassesHelper(cell, ulClass, tableListStartFrom2 ? 1 : 0);
                 }
                 if (!cell.querySelector('table') && !cell.textContent.trim()) cell.innerHTML = '';

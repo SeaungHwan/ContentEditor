@@ -17,7 +17,7 @@
  *   - isWrapDiv          : table을 div로 감쌀지 여부
  *   - isVerticalHeader   : th 내용을 세로(한 글자씩 + br) 방향으로 표시할지 여부
  *   - headerRows/Cols    : thead 또는 좌측 헤더(th scope="row") 범위 행/열 수
- *   - tit1/tit2/tit3     : 제목 감지 설정 (type: 'custom'|'number-dot'|... , val: 직접입력값)
+ *   - tit1/tit2/tit3     : 제목 감지 설정 (type: 'custom'|'number-dot'|... , val: 직접입력값) → h3/h4/h5
  *   - tit1Class~tit3Class: 변환된 h3~h5에 적용할 클래스명
  *
  * 제공 액션:
@@ -32,19 +32,19 @@
 import React, { createContext, useContext, useReducer, useMemo } from "react";
 
 const initialConfig = {
-    wrapperClassName: 'tbl-st',
-    
+    wrapperClassName: 'tbl_st',
+
     // ✨ 일반 텍스트(컨텐츠) 전용 리스트 설정
-    ulClassName: 'bu-st',
+    ulClassName: 'list_st',
     olType: [],
     keepMarker: false,
-    useAtteMarker: true,
+    useAtteMarker: false,
 
     // ✨ 표(Table) 내부 전용 리스트 설정 추가
-    tableUlClassName: 'bu-st',
+    tableUlClassName: 'list_st',
     tableOlType: [],
     tableKeepMarker: false,
-    tableUseAtteMarker: true,
+    tableUseAtteMarker: false,
 
     tableType: 'default',
     isColorMode: false,
@@ -59,16 +59,9 @@ const initialConfig = {
     tit1: { type: 'custom', val: '' },
     tit2: { type: 'custom', val: '' },
     tit3: { type: 'custom', val: '' },
-    tit4: { type: 'custom', val: '' },
-    tit1Class: 'section',
-    tit2Class: 'contents',
-    tit3Class: 'unit',
-    tit4Class: 'item',
-    theme: 'purple',
-    primaryColor: '',
-    secondaryColor: '',
-    tertiaryColor: '',
-    accentColor: '',
+    tit1Class: 'tit1',
+    tit2Class: 'tit2',
+    tit3Class: 'tit3',
 
 };
 
@@ -76,14 +69,14 @@ function configReducer(state, action) {
     switch (action.type) {
         case 'SET_FIELD':
             return { ...state, [action.key]: action.value };
-        case 'UPDATE_MULTIPLE': 
+        case 'UPDATE_MULTIPLE':
             return { ...state, ...action.payload };
-        case 'SET_TABLE_TYPE': 
-            return { 
-                ...state, 
+        case 'SET_TABLE_TYPE':
+            return {
+                ...state,
                 tableType: action.value,
-                headerRows: 1, 
-                headerCols: 1 
+                headerRows: 1,
+                headerCols: 1
             };
         default:
             return state;

@@ -36,13 +36,13 @@ import { UL_NONE_VALUE } from './constants';
 const processTextContentBase = (containerDOM, config, isColorMode, isColorClassMode) => {
     if (!containerDOM || !config) return;
 
-    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, tit1, tit2, tit3, tit4, tit1Class, tit2Class, tit3Class, tit4Class, listStartFrom2 } = config;
+    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2 } = config;
     const noUl = ulClass === UL_NONE_VALUE;
     const noAtte = useAtteMarker === false;
 
     // 1. 셀 내용 처리 및 클래스 적용
     processMsoLists(containerDOM);
-    processCellContent(containerDOM, keepMarker, true, tit1, tit2, tit3, tit4, olType, noUl, noAtte);
+    processCellContent(containerDOM, keepMarker, true, tit1, tit2, tit3, olType, noUl, noAtte);
     applyNestedClassesHelper(containerDOM, ulClass, listStartFrom2 ? 1 : 0);
     performCleanup(containerDOM);
 
@@ -51,17 +51,15 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
             const tagName = child.tagName.toLowerCase();
             
 
-            if (tagName === 'h2') { child.className = tit1Class ? `tit-st ${tit1Class}` : 'tit-st'; }
-            else if (tagName === 'h3') { child.className = tit2Class ? `tit-st ${tit2Class}` : 'tit-st'; }
-            else if (tagName === 'h4') { child.className = tit3Class ? `tit-st ${tit3Class}` : 'tit-st'; }
-            else if (tagName === 'h5') { child.className = tit4Class ? `tit-st ${tit4Class}` : 'tit-st'; }
+            if (tagName === 'h3') { child.className = tit1Class || ''; }
+            else if (tagName === 'h4') { child.className = tit2Class || ''; }
+            else if (tagName === 'h5') { child.className = tit3Class || ''; }
             else if (tagName === 'p' || tagName === 'div') {
 
                 const rawText = child.textContent.trim();
                 const match1 = checkTitleMatch(rawText, tit1);
                 const match2 = checkTitleMatch(rawText, tit2);
                 const match3 = checkTitleMatch(rawText, tit3);
-                const match4 = checkTitleMatch(rawText, tit4);
                 
                 const removeTitleMarker = (element, markerStr) => {
                     if (keepMarker) return;
@@ -81,45 +79,34 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
                     return /^제\d+[장편조관]/.test(safeStr) || /^([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ]|[IVX]+)\./i.test(safeStr);
                 };
                 if (match1) {
-                    const h2 = document.createElement('h2');
-                    h2.className = tit1Class ? `tit-st ${tit1Class}` : 'tit-st';
-                    h2.innerHTML = child.innerHTML;
-
-                    if (!isPreservedMarker(match1)) {
-                        removeTitleMarker(h2, match1);
-                    }
-
-                    child.replaceWith(h2);
-
-                } else if (match2) {
                     const h3 = document.createElement('h3');
-                    h3.className = tit2Class ? `tit-st ${tit2Class}` : 'tit-st';
+                    h3.className = tit1Class || '';
                     h3.innerHTML = child.innerHTML;
 
-                    if (!isPreservedMarker(match2)) {
-                        removeTitleMarker(h3, match2);
+                    if (!isPreservedMarker(match1)) {
+                        removeTitleMarker(h3, match1);
                     }
 
                     child.replaceWith(h3);
 
-                } else if (match3) {
+                } else if (match2) {
                     const h4 = document.createElement('h4');
-                    h4.className = tit3Class ? `tit-st ${tit3Class}` : 'tit-st';
+                    h4.className = tit2Class || '';
                     h4.innerHTML = child.innerHTML;
 
-                    if (!isPreservedMarker(match3)) {
-                        removeTitleMarker(h4, match3);
+                    if (!isPreservedMarker(match2)) {
+                        removeTitleMarker(h4, match2);
                     }
 
                     child.replaceWith(h4);
 
-                } else if (match4) {
+                } else if (match3) {
                     const h5 = document.createElement('h5');
-                    h5.className = tit4Class ? `tit-st ${tit4Class}` : 'tit-st';
+                    h5.className = tit3Class || '';
                     h5.innerHTML = child.innerHTML;
 
-                    if (!isPreservedMarker(match4)) {
-                        removeTitleMarker(h5, match4);
+                    if (!isPreservedMarker(match3)) {
+                        removeTitleMarker(h5, match3);
                     }
 
                     child.replaceWith(h5);

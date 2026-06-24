@@ -19,7 +19,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import ColWidthControl from '../ColWidthControl';
-import { TABLE_CLASS_SUGGESTIONS, UL_CLASS_SUGGESTIONS, OL_OPTIONS, UL_NONE_VALUE, GUIDE_MESSAGES } from '../utils/constants';
+import { TABLE_CLASS_SUGGESTIONS, TABLE_SCROLL_SUGGESTIONS, SCROLL_CLASSES, UL_CLASS_SUGGESTIONS, OL_OPTIONS, UL_NONE_VALUE, GUIDE_MESSAGES } from '../utils/constants';
 import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
@@ -54,6 +54,7 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                         <span className={layout.colTit}>색상모드</span>
                            <div className={layout.swichBtnGroup}>
                             <button type="button"
+                                title="테이블 색상 모드 전환"
                                 className={`${layout.toggleSwitch} ${localConfig.tableIsColorMode ? layout.active : ''} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`}
                                 onClick={() => updateConfig('tableIsColorMode', !localConfig.tableIsColorMode)}
                                 data-guide={isGuideMode ? GUIDE_MESSAGES.modeSelect : undefined}
@@ -62,7 +63,7 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                             </button>
                             </div>
                         </div>
-                    <button type="button" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
+                    <button type="button" data-guide-toggle="true" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
                     <div className={`${layout.guide} ${isGuideMode ? `${layout.guideClose}` : ''}`}>
                         <img src='/00_common/images/sub_com/guide.svg' alt="아이콘"/>
                     </div>
@@ -78,11 +79,14 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                         <div className={`${layout.relative} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.classTableConfig : undefined} data-dropdown="true">
                             {(() => {
                                 const wVal = localConfig.wrapperClassName || '';
-                                const matchedW = TABLE_CLASS_SUGGESTIONS.find(opt => opt.value === wVal);
+                                const activeScroll = SCROLL_CLASSES.find(sc => wVal.split(' ').includes(sc));
+                                const matchedBase = TABLE_CLASS_SUGGESTIONS.find(opt => opt.value === wVal);
+                                const matchedScroll = activeScroll ? TABLE_SCROLL_SUGGESTIONS.find(s => s.scrollClass === activeScroll) : null;
+                                const displayLabel = matchedBase ? matchedBase.label : matchedScroll ? matchedScroll.label : wVal;
                                 return (
                                     <input className={`${layout.Inp} ${layout.selectInp} ${layout.tbl}`} type="text"
-                                        value={matchedW ? matchedW.label : wVal}
-                                        readOnly={!!matchedW}
+                                        value={displayLabel}
+                                        readOnly={!!(matchedBase || matchedScroll)}
                                         onChange={(e) => updateConfig('wrapperClassName', e.target.value)}
                                         onClick={() => setActiveDropdown('tableClass')}
                                         onKeyDown={(e) => {if (e.key === 'Enter') {setActiveDropdown(null);e.target.blur();}}}
@@ -97,6 +101,19 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                                             {cls.label}
                                         </li>
                                     ))}
+                                    {TABLE_SCROLL_SUGGESTIONS.map((scroll, idx) => {
+                                        const wVal = localConfig.wrapperClassName || '';
+                                        const base = wVal.split(' ').filter(c => !SCROLL_CLASSES.includes(c)).join(' ').trim();
+                                        const newVal = base ? `${base} ${scroll.scrollClass}` : scroll.scrollClass;
+                                        return (
+                                            <li key={`scroll-${idx}`} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateConfig('wrapperClassName', newVal); setActiveDropdown(null); }}>
+                                                {scroll.label}
+                                            </li>
+                                        );
+                                    })}
+                                    <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateConfig('wrapperClassName', ''); setActiveDropdown(null); }}>
+                                        직접 입력 <i className="ri-edit-line"></i>
+                                    </li>
                                 </ul>
                             )}
                         </div>
@@ -159,6 +176,9 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                                                     {cls.label}
                                                 </li>
                                             ))}
+                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateConfig('tableUlClassName', ''); setActiveDropdown(null); }}>
+                                                직접 입력 <i className="ri-edit-line"></i>
+                                            </li>
                                         </ul>
                                     )}
                                 </div>
@@ -174,7 +194,7 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                                         onClick={() => setActiveDropdown('tableOlType')}
                                     />
                                     <i className={activeDropdown === 'tableOlType' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} onClick={() => setActiveDropdown(activeDropdown === 'tableOlType' ? null : 'tableOlType')}></i>
-                                    
+
                                     {activeDropdown === 'tableOlType' && (
                                         <ul className={`${layout.dropdownStyle}`}>
                                             <li className={`${layout.listItemStyle}`} onMouseDown={(e) => { e.preventDefault(); updateConfig('tableOlType', []); setActiveDropdown(null); }}>
@@ -190,7 +210,7 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                                 </div>
                             </div>
                              <div className={`${layout.flexCol} ${layout.gap06} ${layout.mglN05}`}>
-                            <label className={`${layout.checkItem}`}>
+                            <label className={`${layout.checkItem} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.atteMarker : undefined}>
                                 <input type="checkbox" checked={localConfig.tableUseAtteMarker !== false} onChange={(e) => updateConfig('tableUseAtteMarker', e.target.checked)} />
                                 <span>※ 변환</span>
                             </label>
@@ -227,8 +247,8 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                 </div>
 
                 <div className={layout.modalFooter}>
-                    <button type="button" className={layout.cancelBtn} onClick={onClose}>취소</button>
-                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply}>저장 및 적용하기</button>
+                    <button type="button" className={layout.cancelBtn} onClick={onClose} title="변경사항 취소 후 닫기">취소</button>
+                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply} title="테이블 설정 저장 및 적용">저장 및 적용하기</button>
                 </div>
             </div>
     );

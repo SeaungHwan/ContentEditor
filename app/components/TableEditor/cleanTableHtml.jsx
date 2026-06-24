@@ -9,7 +9,7 @@
  * 주요 함수:
  *   cleanTableHtml(htmlString, config, colWidths)
  *     1. 노드 순회: 각 노드가 테이블 포함 여부에 따라 textGroup / tableGroup 버퍼에 누적
- *        - td/th 1개 이하인 테이블 → box-st div로 변환(단순 텍스트 박스 취급)
+ *        - td/th 1개 이하인 테이블 → box_st2 div로 변환(단순 텍스트 박스 취급)
  *        - td/th 2개 이상 → tableGroup 버퍼에 축적 후 processTableOnly 일괄 처리
  *     2. flushTextGroup: 누적된 텍스트 블록을 processTextContent로 처리 후 결과에 병합
  *     3. flushTableGroup: 누적된 테이블 블록을 processTableOnly로 처리 후 결과에 병합
@@ -222,7 +222,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     if (tdCount <= 1) {
                         flushTableGroup();
                         const boxDiv = document.createElement('div');
-                        boxDiv.className = 'box-st emp';
+                        boxDiv.className = 'box_st2';
                         const cell = t.querySelector('td, th');
                         if (cell) { while (cell.firstChild) boxDiv.appendChild(cell.firstChild); }
                         else { boxDiv.innerHTML = t.innerHTML; }
@@ -236,13 +236,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     }
                 });
             } else {
-                if (isMeaninglessNode(node) && currentTableGroup.childNodes.length > 0 && !node.classList?.contains('box-st')) {
+                if (isMeaninglessNode(node) && currentTableGroup.childNodes.length > 0 && !node.classList?.contains('box-st') && !node.classList?.contains('box_st2')) {
                     return;
                 }
                 
                 flushTableGroup();
 
-                if (node.nodeType === 1 && node.classList?.contains('box-st')) {
+                if (node.nodeType === 1 && (node.classList?.contains('box-st') || node.classList?.contains('box_st2'))) {
                     flushTextGroup();
                     resultWrapper.appendChild(node.cloneNode(true));
                     return;
@@ -291,9 +291,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     const updated = Array.from(resultWrapper.children);
                     let afterIdx = tableIdx;
                     // bu_atte 등 비리스트·비테이블 요소는 lastLi로 이동해 컨텍스트를 연결
+                    // 단, 법령 섹션 제목(제N조/장/편 등) 또는 heading 태그는 새 섹션 시작이므로 중단
                     while (afterIdx < updated.length) {
                         const el = updated[afterIdx];
                         if (!el || el.tagName === 'OL' || el.tagName === 'UL' || el.tagName === 'TABLE') break;
+                        if (/^h[1-6]$/i.test(el.tagName)) break;
+                        const elText = (el.textContent || '').replace(/[\s​-‍﻿\xA0]/g, '');
+                        if (/^제\d+[장편조관절항호]/.test(elText)) break;
                         lastLi.appendChild(el);
                         afterIdx++;
                     }
@@ -322,7 +326,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         })();
 
         resultWrapper.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6').forEach(el => {
-            if (el.classList?.contains('box-st')) return;
+            if (el.classList?.contains('box-st') || el.classList?.contains('box_st2')) return;
             const text = el.textContent.replace(RE_WHITESPACE, '').trim();
             if (text === '' && el.querySelectorAll('img, table, iframe').length === 0) {
                 el.remove();

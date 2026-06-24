@@ -75,7 +75,7 @@ export const checkTitleMatch = (text, titConfig) => {
 export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0) => {
     if (!cell) return;
     const ulBaseName = (baseUlClassName && baseUlClassName !== UL_NONE_VALUE && baseUlClassName.trim()) ? baseUlClassName.trim() : '';
-    const olBaseName = 'order-st';
+    const olBaseName = 'list_ol';
 
     const processNode = (node) => {
         const tagName = node.tagName.toLowerCase();
@@ -89,7 +89,7 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0)
         const baseName = (tagName === 'ul') ? ulBaseName : olBaseName;
         const effectiveLevel = (tagName === 'ul') ? level + levelOffset : level;
         if (baseName) {
-            node.className = tagName === 'ul' ? `list ${baseName}${effectiveLevel}` : `${baseName}${effectiveLevel}`;
+            node.className = `${baseName}${effectiveLevel}`;
         } else {
             node.removeAttribute('class');
         }
@@ -105,7 +105,7 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0)
     rootLists.forEach(list => processNode(list));
 };
 
-export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, tit4 = null, olType = [], noUl = false, noAtte = false) => {
+export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false) => {
     
     const sanitizeSpecialChars = (text) => {
         if (!text) return text;
@@ -113,7 +113,7 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
     };
 
     const getMarkerInfo = (text) => {
-        if (isOuterText && (checkTitleMatch(text, tit1) || checkTitleMatch(text, tit2) || checkTitleMatch(text, tit3) || checkTitleMatch(text, tit4))) {
+        if (isOuterText && (checkTitleMatch(text, tit1) || checkTitleMatch(text, tit2) || checkTitleMatch(text, tit3))) {
             return null;
         }
         const safeText = sanitizeSpecialChars(text);
@@ -376,7 +376,7 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
             if (!keepMarker) {
             if (targetTagName === 'ol') {
                 const spanNum = document.createElement('span');
-                spanNum.className = 'mrk';
+                spanNum.className = 'num';
                 const rawChar = markerInfo.rawMarker || markerInfo.char.replace(/\s+/g, '');
                 spanNum.textContent = convertCircleToArabic(rawChar);
                 li.appendChild(spanNum);

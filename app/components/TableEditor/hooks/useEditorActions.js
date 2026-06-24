@@ -11,14 +11,12 @@
  *   handleManualClean()   - cleanTableHtml 전체 재처리
  *   handleCopy()          - 정제된 HTML 클립보드 복사
  *   handleExternalTableEdit() - 개별 표 설정 모달 열기
- *   handleInsertTemplate(html) - 템플릿 HTML 삽입 후 전체 정리
  */
 "use client";
 import { useCallback } from 'react';
 import { html as html_beautify } from 'js-beautify';
 import { cleanTableHtml, updateStylesOnly } from '../cleanTableHtml';
 import { RE_WHITESPACE } from '../utils/constants';
-import { wrapWithTheme, unwrapThemeDiv } from '../utils/themeWrapper';
 import { removeEmptyRowsColsFromHtml } from '../utils/tableEditUtils';
 import { getDOMParser } from '../utils/htmlCleaners';
 
@@ -64,13 +62,11 @@ export default function useEditorActions({
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
 
         try {
-            const rawVal = unwrapThemeDiv(currentVal);
-            const cleanedHtml = cleanTableHtml(rawVal, config, formattedWidthString);
+            const cleanedHtml = cleanTableHtml(currentVal, config, formattedWidthString);
             const { html: noEmptyHtml } = removeEmptyRowsColsFromHtml(cleanedHtml);
-            const wrappedHtml = wrapWithTheme(noEmptyHtml, config);
 
-            if (editorRef.current) editorRef.current.setFullContent(wrappedHtml);
-            setContent(wrappedHtml);
+            if (editorRef.current) editorRef.current.setFullContent(noEmptyHtml);
+            setContent(noEmptyHtml);
             triggerToast('문서 정리가 완료되었습니다.');
         } catch (error) {
             console.error("Clean Document Error", error);
@@ -83,15 +79,11 @@ export default function useEditorActions({
         const currentVal = editorRef.current?.getInstance()?.value;
         if (!currentVal) return triggerToast('복사할 내용이 없습니다.');
 
-        let finalHtml = updateStylesOnly(unwrapThemeDiv(currentVal), config, formattedWidthString);
+        let finalHtml = updateStylesOnly(currentVal, config, formattedWidthString);
 
         const tempDoc = getDOMParser().parseFromString(finalHtml, 'text/html');
-        tempDoc.querySelectorAll('[data-local-config]').forEach(el => el.removeAttribute('data-local-config'));
-        tempDoc.querySelectorAll('[data-local-colwidths]').forEach(el => el.removeAttribute('data-local-colwidths'));
-        tempDoc.querySelectorAll('[data-temp-id]').forEach(el => el.removeAttribute('data-temp-id'));
-        tempDoc.querySelectorAll('[data-origin-html]').forEach(el => el.removeAttribute('data-origin-html'));
-        tempDoc.querySelectorAll('[data-hcand-id]').forEach(el => el.removeAttribute('data-hcand-id'));
-        tempDoc.querySelectorAll('[data-hconv-id]').forEach(el => el.removeAttribute('data-hconv-id'));
+        ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id']
+            .forEach(attr => tempDoc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr)));
         tempDoc.querySelectorAll('td, th').forEach(cell => {
             const text = cell.textContent.replace(RE_WHITESPACE, '');
             if (text === '' && cell.querySelectorAll('img, iframe, table').length === 0) {
@@ -104,15 +96,6 @@ export default function useEditorActions({
         finalHtml = finalHtml.replace(/<p>\s*<br\s*\/?>\s*<\/p>\s*$/i, '');
         finalHtml = finalHtml.replace(/<br\s+class=["']vt-br["']\s*\/?>/gi, '<br />');
         finalHtml = finalHtml.replace(/<\/table>\s*<br\s*\/?>/gi, '</table>');
-
-        const { theme = '', primaryColor, secondaryColor, tertiaryColor, accentColor } = config;
-        const overrides = [
-            primaryColor   && `--color-primary:${primaryColor}`,
-            secondaryColor && `--color-secondary:${secondaryColor}`,
-            tertiaryColor  && `--color-tertiary:${tertiaryColor}`,
-            accentColor    && `--color-accent:${accentColor}`,
-        ].filter(Boolean).join(';');
-        finalHtml = `<div data-theme="${theme}"${overrides ? ` style="${overrides}"` : ''}>\n${finalHtml}\n</div>`;
 
         try {
             const beautified = html_beautify(finalHtml, {
@@ -175,27 +158,5 @@ export default function useEditorActions({
         }
     }, [editorRef, triggerToast, openTableEditModal]);
 
-    // 5. 템플릿 표 삽입 후 전체 정리
-    const handleInsertTemplate = useCallback(async (templateHtml) => {
-        const instance = editorRef.current?.getInstance();
-        if (!instance) return;
-
-        const currentVal = instance.value || '';
-        const raw = unwrapThemeDiv(currentVal);
-        const combined = raw ? `${raw}\n${templateHtml}` : templateHtml;
-
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 30)));
-
-        try {
-            const cleaned = cleanTableHtml(combined, config, formattedWidthString);
-            const wrapped = wrapWithTheme(cleaned, config);
-            if (editorRef.current) editorRef.current.setFullContent(wrapped);
-            setContent(wrapped);
-            triggerToast('템플릿이 삽입되었습니다.');
-        } catch (e) {
-            triggerToast('삽입 중 오류가 발생했습니다.');
-        }
-    }, [editorRef, config, formattedWidthString, setContent, triggerToast]);
-
-    return { handleClear, handleManualClean, handleCopy, handleExternalTableEdit, handleInsertTemplate };
+    return { handleClear, handleManualClean, handleCopy, handleExternalTableEdit };
 }

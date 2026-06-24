@@ -150,19 +150,21 @@ export const HWP_CHAR_MAP = {
 export const HWP_CHAR_REGEX = new RegExp(Object.keys(HWP_CHAR_MAP).join('|'), 'g');
 // 모달 공용 UI 상수
 export const UL_NONE_VALUE = '__no_ul__';
+export const SCROLL_CLASSES = ['scroll_gr', 'scroll_wide'];
 export const TABLE_CLASS_SUGGESTIONS = [
-    { label: '기본형', value: 'tbl-st' },
-    { label: '모바일 스크롤', value: 'tbl-st scroll-m' },
-    { label: '웹 스크롤', value: 'tbl-st scroll-wrap' },
+    { label: '기본형', value: 'tbl_st' },
+];
+export const TABLE_SCROLL_SUGGESTIONS = [
+    { label: '모바일 스크롤', scrollClass: 'scroll_gr' },
+    { label: '와이드 스크롤', scrollClass: 'scroll_wide' },
 ];
 export const UL_CLASS_SUGGESTIONS = [
-    { label: '기본 리스트', value: 'bu-st' },
+    { label: '기본 리스트', value: 'list_st' },
 ];
 export const TIT_CLASS_SUGGESTIONS = [
-    { label: '대제목', value: 'section' },
-    { label: '중제목', value: 'contents' },
-    { label: '소제목', value: 'unit' },
-    { label: '제목', value: 'item' },
+    { label: 'tit1', value: 'tit1' },
+    { label: 'tit2', value: 'tit2' },
+    { label: 'tit3', value: 'tit3' },
 ];
 export const OL_OPTIONS = [
     { value: 'decimal-dot', label: '숫자: 1.' },
@@ -205,6 +207,7 @@ export const GUIDE_MESSAGES = {
     modeSelect: `[색상 모드]\n 활성화 시 컨텐츠 내의 색상 데이터를 가져옵니다.`,
     classUlConfig: `[리스트 클래스 설정]\n리스트(ul)에 적용할 클래스명을 지정합니다.\n선택 안함으로 설정시 p태그로 반환됩니다.`,
     classOlConfig: `[숫자 리스트 형식 설정]\n숫자 리스트(ol)에 적용할 형식을 지정합니다.\n숫자, 한글 형식등 (다중선택 가능)`,
+    atteMarker: `[※ 변환]\n※ 또는 * 로 시작하는 줄을\nbu_atte 클래스 p태그로 변환합니다.\n해제 시 원본 텍스트로 유지합니다.`,
     noList: `[기호 유지]\nul/li로 변환 시 원본 특수문자나 번호를\n지우지 않고 그대로 유지합니다.`,
     List2: `[리스트 시작]\n리스트 클래스 2부터 시작\n예:(list_st2)`,
     // 툴바 / 에디터
@@ -216,6 +219,8 @@ export const GUIDE_MESSAGES = {
     removeBtn: `에디터 안의 내용을\n모두 지웁니다.`,
     cleanBtn: `불필요한 태그를 정리하고\n표준 HTML로 변환합니다.`,
     tableBtn: `선택한 테이블의\n 세부 설정을\n할 수 있습니다.`,
+    presetsBtn: `[프리셋]\n자주 쓰는 설정을 저장하고\n불러올 수 있습니다.`,
+    guideNotice: `[주의점]\n에디터 사용 시 유의사항을\n확인할 수 있습니다.`,
     // 테이블설정
     HeaderTop: `[헤더 방향]\n표의 기준 헤더 방향을 정합니다.(상단)`,
     HeaderLeft: `[헤더 방향]\n표의 기준 헤더 방향을 정합니다.(좌측)`,
@@ -225,9 +230,8 @@ export const GUIDE_MESSAGES = {
     verticalHeader: `[테이블 기본 설정]\n제목(TH) 칸의 글자를\n세로로 한 줄씩 출력합니다.`,
     colWidth: `[열 너비 제어]\n각 칸의 너비를 직접 지정하거나,\n[자동 계산]으로 균등 분할합니다.\n기본값 : auto`,
     // 컨텐츠설정
-    tit1: `[제목]\n타이틀1(h2)의 범위 및 클래스명을 지정합니다.`,
-    tit2: `[제목]\n타이틀2(h3)의 범위 및 클래스명을 지정합니다.`,
-    tit3: `[제목]\n타이틀3(h4)의 범위 및 클래스명을 지정합니다.`,
-    tit4: `[제목]\n타이틀4(h5)의 범위 및 클래스명을 지정합니다.`,
+    tit1: `[제목]\n타이틀1(h3)의 범위 및 클래스명을 지정합니다.`,
+    tit2: `[제목]\n타이틀2(h4)의 범위 및 클래스명을 지정합니다.`,
+    tit3: `[제목]\n타이틀3(h5)의 범위 및 클래스명을 지정합니다.`,
     color: `[색상모드]\n체크시 = 클래스 pc_색상\n해제시 = style ="color:색상"\n범위 값에 없는 색상은 전부 style처리`,
 };

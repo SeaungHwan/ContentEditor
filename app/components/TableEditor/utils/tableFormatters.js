@@ -120,7 +120,7 @@ export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, he
     if (isWrapDiv) {
         table.removeAttribute('class');
         const parent = table.parentElement;
-        if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st')) { 
+        if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2')) { 
             if (wClass) parent.className = wClass;
             else parent.removeAttribute('class');
         } else {
@@ -134,7 +134,7 @@ export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, he
         else table.removeAttribute('class');
         
         const parent = table.parentElement;
-        if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st')) {
+        if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2')) {
             parent.replaceWith(table);
         }
     }

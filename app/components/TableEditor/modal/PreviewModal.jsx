@@ -19,19 +19,13 @@ const PreviewModal = React.memo(({ content, config, widthString, onClose, layout
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
 
-    const overrideStyle = {};
-    if (config.primaryColor)   overrideStyle['--color-primary']   = config.primaryColor;
-    if (config.secondaryColor) overrideStyle['--color-secondary'] = config.secondaryColor;
-    if (config.tertiaryColor)  overrideStyle['--color-tertiary']  = config.tertiaryColor;
-    if (config.accentColor)    overrideStyle['--color-accent']    = config.accentColor;
-
     const previewHtml = updateStylesOnly(content, config, widthString);
 
     return (
         <div className={layout.modalPopWrap} style={fadeStyle}>
             <div className={layout.modalPop}>
                 <div className={layout.titWrap}>
-                    <h4 className={`tit-st contents ${layout.modalTitH4}`}>미리보기</h4>
+                    <h4 className={`titT1`}>미리보기</h4>
                     <div className={layout.previewTabBar}>
                         <button
                             type="button"
@@ -52,17 +46,13 @@ const PreviewModal = React.memo(({ content, config, widthString, onClose, layout
                 <div className={layout.previewScrollBody}>
                     {viewMode === 'mobile' ? (
                         <div className={layout.mobileFrame}>
-                            <div data-theme={config.theme} style={overrideStyle}>
-                                <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                            </div>
-                        </div>
-                    ) : (
-                        <div data-theme={config.theme} style={overrideStyle}>
                             <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                         </div>
+                    ) : (
+                        <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                     )}
                 </div>
-                <div className='ar mgt20'><button type="button" onClick={onClose} className="btn-st gray">닫기</button></div>
+                <div className='ar mgt20'><button type="button" onClick={onClose} className="btn_gr">닫기</button></div>
             </div>
         </div>
     );

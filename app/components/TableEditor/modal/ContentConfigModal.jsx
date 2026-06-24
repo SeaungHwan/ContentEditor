@@ -64,6 +64,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                             <span className={layout.colTit}>색상모드</span>
                             <div className={layout.swichBtnGroup}>
                                 <button type="button"
+                                title="색상 모드 전환"
                                 className={`${layout.toggleSwitch} ${localConfig.isColorMode ? layout.active : ''} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`}
                                 onClick={() => updateConfig('isColorMode', !localConfig.isColorMode)}
                                 data-guide={isGuideMode ? GUIDE_MESSAGES.modeSelect : undefined}
@@ -72,7 +73,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                             </button>
                             </div>
                         </div>
-                    <button type="button" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
+                    <button type="button" data-guide-toggle="true" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
                         
                     <div className={`${layout.guide} ${isGuideMode ? `${layout.guideClose}` : ''}`}>
                         <img src='/00_common/images/sub_com/guide.svg' alt="아이콘"/>
@@ -83,9 +84,9 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                 <div className={layout.modalBody}>
 
                     <div className={layout.configSection}>
-                        <span className={layout.configLabel} title="H2~H5 제목 태그에 적용할 스타일과 감지 패턴을 설정합니다."><img src='/00_common/images/sub_com/modal_tit.svg' alt="아이콘"/>타이틀</span>
+                        <span className={layout.configLabel} title="H3~H5 제목 태그에 적용할 스타일과 감지 패턴을 설정합니다."><img src='/00_common/images/sub_com/modal_tit.svg' alt="아이콘"/>타이틀</span>
                         <div className={`${layout.flexCol}`}>
-                            {['tit1', 'tit2', 'tit3', 'tit4'].map((titKey, idx) => {
+                            {['tit1', 'tit2', 'tit3'].map((titKey, idx) => {
                                 const currentType = localConfig[titKey]?.type || 'custom';
                                 const isCustom = currentType === 'custom';
                                 const currentLabel = TIT_OPTIONS.find(opt => opt.value === currentType)?.label || '직접 입력';
@@ -96,7 +97,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
 
                                 return (
                                     <div key={titKey} className={`${layout.flexRow} ${layout.gap02}`}>
-                                        <span className={layout.modalLabelSpanSm}>H{idx + 2}</span>
+                                        <span className={layout.modalLabelSpanSm}>H{idx + 3}</span>
                                         <div className={`${layout.flexCol} ${layout.gap035} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES[titKey] : undefined} data-dropdown="true">
                                             <div className={layout.relative} title="제목 태그에 적용할 스타일을 선택하세요.">
                                                 <input className={`${layout.Inp} ${layout.selectInp}`} type="text"
@@ -177,6 +178,9 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                                                     {cls.label}
                                                 </li>
                                             ))}
+                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateConfig('ulClassName', ''); setActiveDropdown(null); }}>
+                                                직접 입력 <i className="ri-edit-line"></i>
+                                            </li>
                                         </ul>
                                     )}
                                 </div>
@@ -206,7 +210,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                                 </div>
                             </div>
                             <div className={`${layout.flexCol} ${layout.gap06} ${layout.mglN05}`}>
-                            <label className={`${layout.checkItem}`}>
+                            <label className={`${layout.checkItem} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.atteMarker : undefined}>
                                 <input type="checkbox" checked={localConfig.useAtteMarker !== false} onChange={(e) => updateConfig('useAtteMarker', e.target.checked)} />
                                 <span>※ 변환</span>
                             </label>
@@ -233,8 +237,8 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                 </div>
 
                 <div className={layout.modalFooter}>
-                    <button type="button" className={layout.cancelBtn} onClick={onClose}>취소</button>
-                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply}>저장 및 적용하기</button>
+                    <button type="button" className={layout.cancelBtn} onClick={onClose} title="변경사항 취소 후 닫기">취소</button>
+                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply} title="설정 저장 및 적용">저장 및 적용하기</button>
                 </div>
             </div>
     );

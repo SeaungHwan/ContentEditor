@@ -77,7 +77,7 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
             if (curWrapDiv) {
                 table.removeAttribute('class');
                 const parent = table.parentElement;
-                if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && parent !== tempDiv) {
+                if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2') && parent !== tempDiv) {
                     if (curWClass) parent.className = curWClass;
                     else parent.removeAttribute('class');
                 } else {
@@ -90,7 +90,7 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
                 if (curWClass) table.className = curWClass;
                 else table.removeAttribute('class');
                 const parent = table.parentElement;
-                if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && parent !== tempDiv) {
+                if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2') && parent !== tempDiv) {
                     parent.replaceWith(table);
                 }
             }

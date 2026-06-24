@@ -48,7 +48,7 @@ const BEAUTIFY_OPTIONS = {
 const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPreview, onTableSelect, editorClasses, triggerToast, onAutoPaste, onStatsChange }, ref) => {
     const editorRef = useRef(null);
     const handlersRef = useRef({ onChange, onPreview, onTableSelect, triggerToast, onAutoPaste, onStatsChange });
-    const classesRef = useRef(editorClasses || { tit1: 'tit1', tit2: 'tit2', tit3: 'tit3', tit4: 'item' });
+    const classesRef = useRef(editorClasses || { tit1: 'tit1', tit2: 'tit2', tit3: 'tit3' });
     const titObserverRef = useRef(null);
     const pendingAutoPasteRef = useRef(false);
     const statsDebounceRef = useRef(null);
@@ -83,13 +83,12 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
     }, []);
 
     useEffect(() => {
-        classesRef.current = editorClasses || { tit1: 'tit1', tit2: 'tit2', tit3: 'tit3', tit4: 'item' };
+        classesRef.current = editorClasses || { tit1: 'tit1', tit2: 'tit2', tit3: 'tit3' };
         if (editorRef.current && editorRef.current.options?.controls?.paragraph) {
             editorRef.current.options.controls.paragraph.list = {
-                'h2': `${classesRef.current.tit1} (H2)`,
-                'h3': `${classesRef.current.tit2} (H3)`,
-                'h4': `${classesRef.current.tit3} (H4)`,
-                'h5': `${classesRef.current.tit4} (H5)`,
+                'h3': `${classesRef.current.tit1} (H3)`,
+                'h4': `${classesRef.current.tit2} (H4)`,
+                'h5': `${classesRef.current.tit3} (H5)`,
             };
         }
     }, [editorClasses]);
@@ -106,10 +105,9 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
 
     const config = useMemo(() => {
         const getTitClassMap = () => ({
-            h2: `tit-st${classesRef.current.tit1 ? ` ${classesRef.current.tit1}` : ''}`,
-            h3: `tit-st${classesRef.current.tit2 ? ` ${classesRef.current.tit2}` : ''}`,
-            h4: `tit-st${classesRef.current.tit3 ? ` ${classesRef.current.tit3}` : ''}`,
-            h5: `tit-st${classesRef.current.tit4 ? ` ${classesRef.current.tit4}` : ''}`,
+            h3: classesRef.current.tit1 || '',
+            h4: classesRef.current.tit2 || '',
+            h5: classesRef.current.tit3 || '',
         });
         return ({
         readonly: false,
@@ -226,10 +224,9 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             beforeInit: (editor) => {
                 if (editor.options.controls.paragraph) {
                     editor.options.controls.paragraph.list = {
-                        'h2': `${classesRef.current.tit1} (H2)`,
-                        'h3': `${classesRef.current.tit2} (H3)`,
-                        'h4': `${classesRef.current.tit3} (H4)`,
-                        'h5': `${classesRef.current.tit4} (H5)`,
+                        'h3': `${classesRef.current.tit1} (H3)`,
+                        'h4': `${classesRef.current.tit2} (H4)`,
+                        'h5': `${classesRef.current.tit3} (H5)`,
                     };
                 }
             },
@@ -417,8 +414,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
     return (
         prevProps.editorClasses.tit1 === nextProps.editorClasses.tit1 &&
         prevProps.editorClasses.tit2 === nextProps.editorClasses.tit2 &&
-        prevProps.editorClasses.tit3 === nextProps.editorClasses.tit3 &&
-        prevProps.editorClasses.tit4 === nextProps.editorClasses.tit4
+        prevProps.editorClasses.tit3 === nextProps.editorClasses.tit3
     );
 });
 

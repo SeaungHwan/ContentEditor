@@ -27,7 +27,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import ColWidthControl from '../ColWidthControl';
-import { TABLE_CLASS_SUGGESTIONS, UL_CLASS_SUGGESTIONS, OL_OPTIONS, UL_NONE_VALUE } from '../utils/constants';
+import { TABLE_CLASS_SUGGESTIONS, TABLE_SCROLL_SUGGESTIONS, SCROLL_CLASSES, UL_CLASS_SUGGESTIONS, OL_OPTIONS, UL_NONE_VALUE } from '../utils/constants';
 import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
@@ -69,11 +69,14 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                                 <div className={layout.relative} data-dropdown="true">
                                     {(() => {
                                         const wVal = localConfig.wrapperClassName || '';
-                                        const matchedW = TABLE_CLASS_SUGGESTIONS.find(opt => opt.value === wVal);
+                                        const activeScroll = SCROLL_CLASSES.find(sc => wVal.split(' ').includes(sc));
+                                        const matchedBase = TABLE_CLASS_SUGGESTIONS.find(opt => opt.value === wVal);
+                                        const matchedScroll = activeScroll ? TABLE_SCROLL_SUGGESTIONS.find(s => s.scrollClass === activeScroll) : null;
+                                        const displayLabel = matchedBase ? matchedBase.label : matchedScroll ? matchedScroll.label : wVal;
                                         return (
                                             <input className={`${layout.Inp} ${layout.selectInp} ${layout.tbl}`} type="text"
-                                                value={matchedW ? matchedW.label : wVal}
-                                                readOnly={!!matchedW}
+                                                value={displayLabel}
+                                                readOnly={!!(matchedBase || matchedScroll)}
                                                 onChange={(e) => updateLocalConfig('wrapperClassName', e.target.value)}
                                                 onClick={() => setActiveDropdown('tableClass')}
                                                 onKeyDown={(e) => {if (e.key === 'Enter') {setActiveDropdown(null);e.target.blur();}}}
@@ -88,6 +91,19 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                                                     {cls.label}
                                                 </li>
                                             ))}
+                                            {TABLE_SCROLL_SUGGESTIONS.map((scroll, idx) => {
+                                                const wVal = localConfig.wrapperClassName || '';
+                                                const base = wVal.split(' ').filter(c => !SCROLL_CLASSES.includes(c)).join(' ').trim();
+                                                const newVal = base ? `${base} ${scroll.scrollClass}` : scroll.scrollClass;
+                                                return (
+                                                    <li key={`scroll-${idx}`} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('wrapperClassName', newVal); setActiveDropdown(null); }}>
+                                                        {scroll.label}
+                                                    </li>
+                                                );
+                                            })}
+                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('wrapperClassName', ''); setActiveDropdown(null); }}>
+                                                직접 입력 <i className="ri-edit-line"></i>
+                                            </li>
                                         </ul>
                                     )}
                                 </div>
@@ -150,6 +166,9 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                                                     {cls.label}
                                                 </li>
                                             ))}
+                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('tableUlClassName', ''); setActiveDropdown(null); }}>
+                                                직접 입력 <i className="ri-edit-line"></i>
+                                            </li>
                                         </ul>
                                     )}
                                 </div>
@@ -190,9 +209,9 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                                 <input type="checkbox" checked={localConfig.tableListStartFrom2 || false} onChange={(e) => updateLocalConfig('tableListStartFrom2', e.target.checked)} />
                                 <span>시작(리스트2)</span>
                             </label>
-                            {localConfig.isColorMode && (
+                            {localConfig.tableIsColorMode && (
                                 <label className={layout.checkItem}>
-                                    <input type="checkbox" checked={localConfig.isColorClassMode || false} onChange={(e) => updateLocalConfig('isColorClassMode', e.target.checked)} />
+                                    <input type="checkbox" checked={localConfig.tableIsColorClassMode || false} onChange={(e) => updateLocalConfig('tableIsColorClassMode', e.target.checked)} />
                                     <span>색상 클래스</span>
                                 </label>
                             )}
@@ -217,8 +236,8 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                 </div>
 
                 <div className={layout.modalFooter}>
-                    <button type="button" className={layout.cancelBtn} onClick={onClose}>취소</button>
-                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply}>저장 및 적용하기</button>
+                    <button type="button" className={layout.cancelBtn} onClick={onClose} title="변경사항 취소 후 닫기">취소</button>
+                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply} title="표 설정 저장 및 적용">저장 및 적용하기</button>
                 </div>
             </div>
     );

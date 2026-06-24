@@ -33,11 +33,11 @@ const FADE_DURATION = 300;
 const INITIAL_MODALS = {
     preview: false, guide: false,
     globalTableConfig: false, contentConfig: false,
-    tableEdit: false, presets: false, template: false,
+    tableEdit: false, presets: false,
 };
 
 // 동시에 하나만 열릴 수 있는 모달 그룹
-const EXCLUSIVE_MODALS = ['globalTableConfig', 'contentConfig', 'tableEdit', 'preview', 'presets', 'template'];
+const EXCLUSIVE_MODALS = ['globalTableConfig', 'contentConfig', 'tableEdit', 'preview', 'presets'];
 
 const INITIAL_TABLE_EDIT_DATA = { html: '', tempId: '', existingConfig: null, existingColWidths: null };
 
