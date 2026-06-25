@@ -137,12 +137,12 @@ export default function useEditorActions({
         if (table) {
             let targetToProcess = table;
             const par = table.parentElement;
-            if (par && par.tagName === 'DIV' && (
-                par.hasAttribute('data-local-config') ||
-                par.hasAttribute('data-local-colwidths') ||
-                par.className.includes('tbl') ||
-                par.className.includes('scroll')
-            )) {
+            // 테이블을 직접 감싸는 div wrapper를 탐지:
+            // box-st/box_st2 같은 특수 컨테이너나 에디터 루트가 아닌 모든 div를 wrapper로 인식
+            if (par && par.tagName === 'DIV' &&
+                !par.classList.contains('box-st') &&
+                !par.classList.contains('box_st2') &&
+                par !== instance.editor) {
                 targetToProcess = par;
             }
 
