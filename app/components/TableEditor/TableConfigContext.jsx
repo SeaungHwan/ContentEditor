@@ -38,7 +38,7 @@ const initialConfig = {
     ulClassName: 'list_st',
     olType: [],
     keepMarker: false,
-    useAtteMarker: false,
+    useAtteMarker: true,
 
     // ✨ 표(Table) 내부 전용 리스트 설정 추가
     tableUlClassName: 'list_st',

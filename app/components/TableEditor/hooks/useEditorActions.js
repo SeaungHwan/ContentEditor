@@ -136,8 +136,14 @@ export default function useEditorActions({
 
         if (table) {
             let targetToProcess = table;
-            if (table.parentElement && table.parentElement.tagName === 'DIV' && (table.parentElement.className.includes('tbl') || table.parentElement.className.includes('scroll'))) {
-                targetToProcess = table.parentElement;
+            const par = table.parentElement;
+            if (par && par.tagName === 'DIV' && (
+                par.hasAttribute('data-local-config') ||
+                par.hasAttribute('data-local-colwidths') ||
+                par.className.includes('tbl') ||
+                par.className.includes('scroll')
+            )) {
+                targetToProcess = par;
             }
 
             const tempId = 'tbl-edit-' + Math.random().toString(36).substr(2, 9);

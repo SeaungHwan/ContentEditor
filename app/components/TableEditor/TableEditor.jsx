@@ -26,12 +26,14 @@ import useAutoSave from './hooks/useAutoSave';
 import usePresets from './hooks/usePresets';
 import GlobalLoader from '../loading/GlobalLoader';
 import { fillSeqInTable } from './utils/tableEditUtils';
+import { applyColGroupHelper } from './utils/tableFormatters';
 import { getDOMParser } from './utils/htmlCleaners';
 import { extractHeadingCandidates } from './utils/headingExtractor';
 
 // 문서 아웃라인 목차가 인식하는 요소 (querySelectorAll 순서 = 문서 순서)
-const TOC_SELECTOR = 'h2, h3, h4, h5, table, ul, ol';
-const HEADING_INDENT = { h2: 0, h3: 1, h4: 2, h5: 3 };
+const TOC_SELECTOR = 'h3, h4, h5, table, ul, ol';
+const HEADING_INDENT = { h3: 0, h4: 1, h5: 2 };
+const MAX_HISTORY = 20;
 
 export default function TableEditorWrapper({ initialHtml = '', onChange }) {
     return (
@@ -47,10 +49,11 @@ function TableEditor({ initialHtml = '', onChange }) {
     const [content, setContent] = useState(initialHtml);
     const [colWidths, setColWidths] = useState(['']);
     const [selectedTableNode, setSelectedTableNode] = useState(null);
+    const [isEqualColWidths, setIsEqualColWidths] = useState(false);
     const selectedTableNodeRef = useRef(null);
     const editorComponentRef = useRef(null);
     const editBoxRef = useRef(null);
-    const [tableBtnPos, setTableBtnPos] = useState(null);
+    const tableBtnRef = useRef(null);
 
     // 자동 저장 복구 배너 상태
     const [autoSaveData, setAutoSaveData] = useState(null);
@@ -133,7 +136,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     // 정리 + 감지를 묶은 래퍼 (툴바·단축키에서 사용)
     const handleManualCleanAndDetect = useCallback(async (...args) => {
         await handleManualClean(...args);
-        setTimeout(() => runHeadingDetectRef.current(), 150);
+        requestAnimationFrame(() => runHeadingDetectRef.current());
     }, [handleManualClean]);
 
     // ===== [자동 저장] ==========================================================
@@ -173,7 +176,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             if (!e.ctrlKey || !e.shiftKey) return;
             switch (e.key.toLowerCase()) {
                 case 'c': e.preventDefault(); handleCopyRef.current(); break;
-                case 'z': e.preventDefault(); handleManualCleanRef.current()?.then?.(() => setTimeout(() => runHeadingDetectRef.current(), 150)); break;
+                case 'z': e.preventDefault(); handleManualCleanRef.current()?.then?.(() => requestAnimationFrame(() => runHeadingDetectRef.current())); break;
                 case 'x': e.preventDefault(); toggleModal('preview', true); break;
             }
         };
@@ -197,27 +200,21 @@ function TableEditor({ initialHtml = '', onChange }) {
     // ===== [통계] ================================================================
     const [stats, setStats] = useState({ chars: 0, tables: 0, images: 0 });
 
+    // content가 연속으로 바뀔 때 tocItems의 parseFromString이 과도하게 실행되지 않도록 300ms 디바운스
+    const debounceTocTimerRef = useRef(null);
+    const [debouncedContent, setDebouncedContent] = useState(content);
     useEffect(() => {
-        if (!content) { setStats({ chars: 0, tables: 0, images: 0 }); return; }
-        try {
-            const doc = getDOMParser().parseFromString(content, 'text/html');
-            const chars = (doc.body.textContent || '').replace(/\s/g, '').length;
-            const tables = doc.querySelectorAll('table').length;
-            const images = doc.querySelectorAll('img').length;
-            setStats({ chars, tables, images });
-        } catch { setStats({ chars: 0, tables: 0, images: 0 }); }
+        if (debounceTocTimerRef.current) clearTimeout(debounceTocTimerRef.current);
+        debounceTocTimerRef.current = setTimeout(() => setDebouncedContent(content), 300);
+        return () => { if (debounceTocTimerRef.current) clearTimeout(debounceTocTimerRef.current); };
     }, [content]);
-
-    const handleStatsChange = useCallback((newStats) => {
-        setStats(newStats);
-    }, []);
 
     // ===== [문서 아웃라인 목차] ====================================================
     // h2~h5, table, ul/ol을 DOM 순서대로 수집 (중첩 표·목록 제외)
     const tocItems = useMemo(() => {
-        if (!content) return [];
+        if (!debouncedContent) return [];
         try {
-            const doc = getDOMParser().parseFromString(content, 'text/html');
+            const doc = getDOMParser().parseFromString(debouncedContent, 'text/html');
             const allEls = Array.from(doc.querySelectorAll(TOC_SELECTOR));
             let tableSeq = 0, listSeq = 0;
             const items = [];
@@ -251,7 +248,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             });
             return items;
         } catch { return []; }
-    }, [content]);
+    }, [debouncedContent]);
 
     // 타입 필터 적용
     const filteredTocItems = useMemo(() =>
@@ -270,6 +267,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             clickLockedRef.current = true;
             setActiveItemIndex(domIndex);
             elements[domIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => { clickLockedRef.current = false; }, 600);
         }
     }, []);
 
@@ -369,7 +367,7 @@ function TableEditor({ initialHtml = '', onChange }) {
         el.replaceWith(heading);
         syncEditorHtml();
         setHeadingCandidates(prev => prev.filter(c => c.id !== id));
-        setConversionHistory(prev => [...prev, { items: [snapshot] }]);
+        setConversionHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), { items: [snapshot] }]);
         triggerToast('제목으로 변환했습니다.');
     }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
 
@@ -402,7 +400,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             el.replaceWith(heading);
         });
         syncEditorHtml();
-        if (snapshots.length) setConversionHistory(prev => [...prev, { items: snapshots }]);
+        if (snapshots.length) setConversionHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), { items: snapshots }]);
         triggerToast(`${candidates.length}개를 제목으로 변환했습니다.`);
         setHeadingCandidates([]);
     }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
@@ -416,9 +414,9 @@ function TableEditor({ initialHtml = '', onChange }) {
         setHeadingCandidates([]);
     }, [syncEditorHtml]);
 
-    // 레벨 순환 변경 (H2 → H3 → H4 → H5 → H2)
+    // 레벨 순환 변경 (H3 → H4 → H5 → H2)
     const handleCandidateLevelChange = useCallback((id) => {
-        const CYCLE = ['h2', 'h3', 'h4', 'h5'];
+        const CYCLE = ['h3', 'h4', 'h5'];
         setHeadingCandidates(prev => prev.map(c => {
             if (c.id !== id) return c;
             const next = (CYCLE.indexOf(c.suggestedLevel) + 1) % CYCLE.length;
@@ -470,32 +468,59 @@ function TableEditor({ initialHtml = '', onChange }) {
 
         const newNode = document.createElement('div');
         newNode.className = 'box_st2 rsp_img ac';
-        newNode.innerHTML = '\n    <img src="https://placehold.co/200x200" alt="">\n';
+        newNode.innerHTML = '\n    <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%23e9e9e9%22%2F%3E%3C%2Fsvg%3E" alt="">\n';
 
         const wrapperDiv = selectedTableNode.closest('div.tbl-st, div.box-st, div.box_st2');
         (wrapperDiv || selectedTableNode).replaceWith(newNode);
-        const newHtml = instance.editor.innerHTML;
-        instance.value = newHtml;
-        instance.events.fire('change');
-        if (editorComponentRef.current.setFullContent) editorComponentRef.current.setFullContent(newHtml);
-        setContent(newHtml);
+        syncEditorHtml();
         setSelectedTableNode(null);
-        setTableBtnPos(null);
+        if (tableBtnRef.current) tableBtnRef.current.style.display = 'none';
         triggerToast('이미지 박스로 치환되었습니다.');
-    }, [selectedTableNode, triggerToast]);
+    }, [selectedTableNode, syncEditorHtml, triggerToast]);
 
     // ===== [순번 채우기] =========================================================
     const handleFillSeq = useCallback(() => {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance || !selectedTableNode) return;
         fillSeqInTable(selectedTableNode, 0);
-        const newHtml = instance.editor.innerHTML;
-        instance.value = newHtml;
-        instance.events.fire('change');
-        if (editorComponentRef.current.setFullContent) editorComponentRef.current.setFullContent(newHtml);
-        setContent(newHtml);
+        syncEditorHtml();
         triggerToast('순번이 채워졌습니다.');
-    }, [selectedTableNode, triggerToast]);
+    }, [selectedTableNode, syncEditorHtml, triggerToast]);
+
+    // ===== [열 너비 균등 분할] ===================================================
+    useEffect(() => {
+        if (!selectedTableNode) { setIsEqualColWidths(false); return; }
+        const col = selectedTableNode.querySelector('colgroup col[span]');
+        setIsEqualColWidths(!!(col && col.style.width.includes('calc')));
+    }, [selectedTableNode]);
+
+    const handleEqualColWidths = useCallback(() => {
+        if (!selectedTableNode) return;
+        // applyColGroupHelper requires the actual <table> element
+        const tableEl = selectedTableNode.tagName === 'TABLE'
+            ? selectedTableNode
+            : selectedTableNode.querySelector('table') || selectedTableNode;
+        // storage node for data-local-colwidths mirrors handleExternalTableEdit logic
+        let storageNode;
+        if (selectedTableNode.tagName !== 'TABLE') {
+            storageNode = selectedTableNode;
+        } else {
+            const parent = selectedTableNode.parentElement;
+            storageNode = (parent?.tagName === 'DIV' &&
+                (parent.className.includes('tbl') || parent.className.includes('scroll')))
+                ? parent : selectedTableNode;
+        }
+        if (isEqualColWidths) {
+            tableEl.querySelector('colgroup')?.remove();
+            storageNode.removeAttribute('data-local-colwidths');
+        } else {
+            applyColGroupHelper(tableEl, 'auto-calc');
+            storageNode.setAttribute('data-local-colwidths', JSON.stringify(['auto-calc']));
+        }
+        setIsEqualColWidths(prev => !prev);
+        syncEditorHtml();
+        triggerToast(isEqualColWidths ? '열 너비 설정이 해제됐습니다.' : '열 너비가 균등하게 적용됐습니다.');
+    }, [selectedTableNode, isEqualColWidths, syncEditorHtml, triggerToast]);
 
     // ===== [행 정렬] =============================================================
 
@@ -504,8 +529,8 @@ function TableEditor({ initialHtml = '', onChange }) {
     useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
     useEffect(() => {
-        if (!onChangeRef.current || !content) return;
-        const val = editorComponentRef.current?.getInstance()?.value || content;
+        if (!onChangeRef.current || !debouncedContent) return;
+        const val = editorComponentRef.current?.getInstance()?.value || debouncedContent;
         const doc = getDOMParser().parseFromString(val, 'text/html');
         ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id'].forEach(attr => {
             doc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr));
@@ -519,7 +544,14 @@ function TableEditor({ initialHtml = '', onChange }) {
         let html = doc.body.innerHTML;
         html = html.replace(/<\/table>\s*<br\s*\/?>/gi, '</table>');
         onChangeRef.current(html);
-    }, [content]);
+    }, [debouncedContent]);
+
+    // 에디터 내용이 비워지면 제목 후보 초기화
+    useEffect(() => {
+        if (!debouncedContent) { setHeadingCandidates([]); return; }
+        const text = debouncedContent.replace(/<[^>]*>/g, '').trim();
+        if (!text) setHeadingCandidates([]);
+    }, [debouncedContent]);
 
     useEffect(() => {
         if (isGuideMode) {
@@ -546,7 +578,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             const isInsideBtn = e.target.closest(`.${layout.tableBtn}`);
             if (!isInsideEditor && !isInsideBtn) {
                 setSelectedTableNode(null);
-                setTableBtnPos(null);
+                if (tableBtnRef.current) tableBtnRef.current.style.display = 'none';
             }
         };
         document.addEventListener('click', handleOutsideClick);
@@ -555,19 +587,22 @@ function TableEditor({ initialHtml = '', onChange }) {
 
     const updateBtnPos = useCallback(() => {
         const tableEl = selectedTableNodeRef.current;
-        if (!tableEl || !editBoxRef.current) { setTableBtnPos(null); return; }
+        const btn = tableBtnRef.current;
+        if (!tableEl || !editBoxRef.current || !btn) {
+            if (btn) btn.style.display = 'none';
+            return;
+        }
         const tableRect = tableEl.getBoundingClientRect();
         const boxRect = editBoxRef.current.getBoundingClientRect();
-        setTableBtnPos({
-            top: Math.round(tableRect.top - boxRect.top) - 40,
-            left: Math.round(tableRect.right - boxRect.left),
-        });
+        btn.style.top = `${Math.round(tableRect.top - boxRect.top) - 40}px`;
+        btn.style.left = `${Math.round(tableRect.right - boxRect.left)}px`;
+        btn.style.display = '';
     }, []);
 
     useEffect(() => { updateBtnPos(); }, [selectedTableNode, updateBtnPos]);
 
     useEffect(() => {
-        if (!selectedTableNode) { setTableBtnPos(null); return; }
+        if (!selectedTableNode) { if (tableBtnRef.current) tableBtnRef.current.style.display = 'none'; return; }
         let rafId = null;
         const throttled = () => {
             if (rafId) return;
@@ -647,13 +682,15 @@ function TableEditor({ initialHtml = '', onChange }) {
                 targetNode.replaceWith(newTargetNode);
                 const newEditorHtml = instance.editor.innerHTML;
                 instance.value = newEditorHtml;
-                instance.events.fire('change');
 
-                if (editorComponentRef.current.setFullContent) {
-                    editorComponentRef.current.setFullContent(newEditorHtml);
+                // Jodit DOM 재구성 후 살아있는 노드를 다시 찾아 data-local-config 보존 보장
+                const liveNode = instance.editor.querySelector(`[data-temp-id="${tableEditModal.tempId}"]`);
+                if (liveNode) {
+                    liveNode.setAttribute('data-local-config', JSON.stringify(localConfig));
+                    liveNode.setAttribute('data-local-colwidths', JSON.stringify(localColWidths));
                 }
-                setContent(newEditorHtml);
-                setSelectedTableNode(newTargetNode);
+                setContent(instance.editor.innerHTML);
+                setSelectedTableNode(liveNode || newTargetNode);
                 triggerToast('선택한 표의 설정이 개별 변경되었습니다.');
             }
         }
@@ -706,24 +743,27 @@ function TableEditor({ initialHtml = '', onChange }) {
 
                 <div className={layout.editorArea}>
                     <div ref={editBoxRef} className={`${layout.editBox} ${isGuideMode ? `${layout.guideTarget} ${layout.guideCenter}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.editorConfig : undefined} >
-                        {tableBtnPos && (
-                            <div className={layout.tableBtn} style={{ top: tableBtnPos.top, left: tableBtnPos.left }}>
+                        <div ref={tableBtnRef} className={layout.tableBtn} style={{ display: 'none' }}>
                                 <div className={layout.tableBtnGroup}>
-                                    {/* 기존: 개별 표 설정 */}
-                                    <button type="button" onClick={handleExternalTableEdit} className={`${layout.Btn} ${isGuideMode ? `${layout.guideTarget} ${layout.guideLeft}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.tableBtn : undefined} title="개별 표 설정">
-                                        <i className="ri-settings-4-line"></i>
-                                    </button>
+                                    
                                     {/* 순번 채우기 */}
                                     <button type="button" onClick={handleFillSeq} className={layout.Btn} title="첫 번째 열에 순번(1,2,3…) 자동 입력">
                                         <i className="ri-list-ordered"></i>
+                                    </button>
+                                    {/* 열 너비 균등 분할 */}
+                                    <button type="button" onClick={handleEqualColWidths} className={`${layout.Btn}${isEqualColWidths ? ` ${layout.BtnOn}` : ''}`} title={isEqualColWidths ? "열 너비 균등 분할 해제" : "열 너비 균등 분할"}>
+                                        <i className="ri-layout-column-line"></i>
                                     </button>
                                     {/* 이미지 박스 치환 */}
                                     <button type="button" onClick={handleReplaceWithImageBox} className={layout.Btn} title="표를 이미지 박스로 치환">
                                         <i className="ri-image-line"></i>
                                     </button>
+                                    {/* 기존: 개별 표 설정 */}
+                                    <button type="button" onClick={handleExternalTableEdit} className={`${layout.Btn} ${isGuideMode ? `${layout.guideTarget} ${layout.guideLeft}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.tableBtn : undefined} title="개별 표 설정">
+                                        <i className="ri-settings-4-line"></i>
+                                    </button>
                                 </div>
-                            </div>
-                        )}
+                        </div>
 
                         <ErrorBoundary key="editor-boundary">
                             <JoditCustomEditor
@@ -735,7 +775,7 @@ function TableEditor({ initialHtml = '', onChange }) {
                                 editorClasses={editorClasses}
                                 triggerToast={triggerToast}
                                 onAutoPaste={handleAutoPaste}
-                                onStatsChange={handleStatsChange}
+                                onStatsChange={setStats}
                             />
                         </ErrorBoundary>
                     </div>
@@ -795,7 +835,7 @@ function TableEditor({ initialHtml = '', onChange }) {
                                                     {suggestedLevel.toUpperCase()}{confidence === 'medium' ? '?' : ''}
                                                 </button>
                                                 <button type="button" className={layout.tocCandConvert} onClick={() => handleCandidateConvert(id, suggestedLevel)} title="제목으로 변환">
-                                                    <i className="ri-arrow-right-line" />
+                                                    변환
                                                 </button>
                                                 <button type="button" className={layout.tocCandDismiss} onClick={() => handleCandidateDismiss(id)} title="무시">
                                                     <i className="ri-close-line" />
@@ -864,6 +904,7 @@ function TableEditor({ initialHtml = '', onChange }) {
 
             {modals.tableEdit && (
                 <TableEditModal
+                    key={tableEditModal.tempId || 'table-edit'}
                     onClose={closeTableEditModal}
                     onApply={handleTableEditApply}
                     globalConfig={config}
