@@ -101,11 +101,14 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
     const isHeading = /^h[1-6]$/.test(tagName);
     const isLink = tagName === 'a';
 
-    if (!ALLOWED_TAGS.has(tagName) && !isHeading && !isLink) { 
-        element.replaceWith(...element.childNodes); 
-        return; 
+    if (!ALLOWED_TAGS.has(tagName) && !isHeading && !isLink) {
+        element.replaceWith(...element.childNodes);
+        return;
     }
-    
+
+    // col: span/style(width)이 colgroup에 필수 — 외부 테이블 셀 cleanup 시 중첩 테이블 width가 지워지는 문제 방지
+    if (tagName === 'col') return;
+
     if (tagName === 'table') element.removeAttribute('class');
     if (isLink) {
         const href = element.getAttribute('href') || '';
@@ -131,7 +134,7 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
         
         if (attrName === 'class') {
             const currentClasses = element.getAttribute('class').split(/\s+/);
-            const cleanClasses = currentClasses.filter(cls => !/^xl\d+$/.test(cls) && !/^oa\d+$/.test(cls) && !/^\d+$/.test(cls));
+            const cleanClasses = currentClasses.filter(cls => !/^xl\d+$/.test(cls) && !/^oa\d+$/.test(cls) && !/^\d+$/.test(cls) && !/^jodit/.test(cls));
             if (cleanClasses.length > 0) element.setAttribute('class', cleanClasses.join(' '));
             else element.removeAttribute('class');
         }
@@ -183,8 +186,41 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
     }
 
     if (tagName === 'span' && !element.hasAttribute('class') && !element.hasAttribute('style')) {
-         element.replaceWith(...element.childNodes); 
+         element.replaceWith(...element.childNodes);
     }
+};
+
+const _mergeAdjacentInlines = (container) => {
+    Array.from(container.querySelectorAll('span, b, i, u, strong, em')).forEach(el => {
+        if (!el.parentNode) return;
+        const tagName = el.tagName.toLowerCase();
+        if (tagName === 'span' && el.classList.contains('num')) return;
+        const elClass = el.getAttribute('class') || '';
+        const elStyle = el.getAttribute('style') || '';
+        if (tagName === 'span' && !elClass && !elStyle) return;
+        let next = el.nextSibling;
+        while (next) {
+            if (next.nodeType === 3 && /^\s*$/.test(next.textContent)) {
+                const nn = next.nextSibling;
+                if (nn && nn.nodeType === 1 && nn.tagName.toLowerCase() === tagName &&
+                    (nn.getAttribute('class') || '') === elClass &&
+                    (nn.getAttribute('style') || '') === elStyle) {
+                    el.appendChild(next);
+                    while (nn.firstChild) el.appendChild(nn.firstChild);
+                    const toRemove = nn;
+                    next = nn.nextSibling;
+                    toRemove.remove();
+                } else { break; }
+            } else if (next.nodeType === 1 && next.tagName.toLowerCase() === tagName &&
+                (next.getAttribute('class') || '') === elClass &&
+                (next.getAttribute('style') || '') === elStyle) {
+                while (next.firstChild) el.appendChild(next.firstChild);
+                const toRemove = next;
+                next = next.nextSibling;
+                toRemove.remove();
+            } else { break; }
+        }
+    });
 };
 
 export const performCleanup = (container) => {
@@ -209,44 +245,8 @@ export const performCleanup = (container) => {
         }
     });
 
-    // Pass 2: 인접 동일 class/style 태그 병합 (6회 → 1회 querySelectorAll)
-    Array.from(container.querySelectorAll('span, b, i, u, strong, em')).forEach(el => {
-        if (!el.parentNode) return;
-        const tagName = el.tagName.toLowerCase();
-        if (tagName === 'span' && el.classList.contains('mrk')) return;
-
-        const elClass = el.getAttribute('class') || '';
-        const elStyle = el.getAttribute('style') || '';
-
-        if (tagName === 'span' && !elClass && !elStyle) return;
-
-        let next = el.nextSibling;
-        while (next) {
-            if (next.nodeType === 3 && /^\s*$/.test(next.textContent)) {
-                let nextNext = next.nextSibling;
-                if (nextNext && nextNext.nodeType === 1 && nextNext.tagName.toLowerCase() === tagName) {
-                    const nnClass = nextNext.getAttribute('class') || '';
-                    const nnStyle = nextNext.getAttribute('style') || '';
-                    if (elClass === nnClass && elStyle === nnStyle) {
-                        el.appendChild(next);
-                        while (nextNext.firstChild) el.appendChild(nextNext.firstChild);
-                        const toRemove = nextNext;
-                        next = nextNext.nextSibling;
-                        toRemove.remove();
-                    } else { break; }
-                } else { break; }
-            } else if (next.nodeType === 1 && next.tagName.toLowerCase() === tagName) {
-                const nClass = next.getAttribute('class') || '';
-                const nStyle = next.getAttribute('style') || '';
-                if (elClass === nClass && elStyle === nStyle) {
-                    while (next.firstChild) el.appendChild(next.firstChild);
-                    const toRemove = next;
-                    next = next.nextSibling;
-                    toRemove.remove();
-                } else { break; }
-            } else { break; }
-        }
-    });
+    // Pass 2: 인접 동일 class/style 태그 병합
+    _mergeAdjacentInlines(container);
 
     // Pass 3: 빈 인라인 태그 제거 (5회 → 1회 querySelectorAll)
     Array.from(container.querySelectorAll('b, i, u, strong, em')).forEach(node => {
@@ -261,6 +261,12 @@ export const performCleanup = (container) => {
         .replace(CLEANUP_REGEX.listBr, '')
         .replace(CLEANUP_REGEX.startBr, '')
         .replace(CLEANUP_REGEX.endBr, '');
+};
+
+// traverseAndClean 후 인라인 태그(span/b/i/u/strong/em) 재병합
+// (정규화 전 스타일 순서/속성 차이로 performCleanup에서 실패한 경우를 커버)
+export const mergeAdjacentColorSpans = (container) => {
+    _mergeAdjacentInlines(container);
 };
 
 // element 앞에서 count 글자를 TreeWalker로 순서대로 제거한다.

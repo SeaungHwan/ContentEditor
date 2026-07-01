@@ -23,7 +23,7 @@
 "use client";
 
 import { getDOMParser } from './htmlCleaners';
-import { applyColGroupHelper, applyVerticalHeaders } from './tableFormatters';
+import { applyColGroupHelper, applyVerticalHeaders, applyWrapDiv } from './tableFormatters';
 import { applyNestedClassesHelper } from './listExtractors';
 import { RE_NUMERIC } from './constants';
 
@@ -46,9 +46,10 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
         const allTables = Array.from(tempDiv.querySelectorAll('table'));
         allTables.forEach(table => {
             let searchNode = table;
-            if (table.parentElement && table.parentElement.hasAttribute('data-local-config')) {
-                searchNode = table.parentElement;
-            } else if (table.hasAttribute('data-local-config')) {
+            const tableParent = table.parentElement;
+            if (tableParent && (tableParent.hasAttribute('data-local-config') || tableParent.hasAttribute('data-local-colwidths'))) {
+                searchNode = tableParent;
+            } else if (table.hasAttribute('data-local-config') || table.hasAttribute('data-local-colwidths')) {
                 searchNode = table;
             }
 
@@ -74,26 +75,17 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
                 } catch (e) {}
             }
 
-            if (curWrapDiv) {
-                table.removeAttribute('class');
-                const parent = table.parentElement;
-                if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2') && parent !== tempDiv) {
-                    if (curWClass) parent.className = curWClass;
-                    else parent.removeAttribute('class');
-                } else {
-                    const wrapperDiv = document.createElement('div');
-                    if (curWClass) wrapperDiv.className = curWClass;
-                    table.parentNode.insertBefore(wrapperDiv, table);
-                    wrapperDiv.appendChild(table);
-                }
-            } else {
-                if (curWClass) table.className = curWClass;
-                else table.removeAttribute('class');
-                const parent = table.parentElement;
-                if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2') && parent !== tempDiv) {
-                    parent.replaceWith(table);
-                }
+            applyWrapDiv(table, curWClass, curWrapDiv, tempDiv);
+
+            // applyWrapDiv가 기존 래퍼 div를 교체하면 data-local-config가 소실될 수 있으므로
+            // 처리 후 올바른 요소(래퍼 div 또는 table)에 복원한다.
+            if (localCfgStr || localCwStr) {
+                const wr = table.parentElement;
+                const tgt = (wr && wr.tagName === 'DIV' && wr !== tempDiv) ? wr : table;
+                if (localCfgStr && !tgt.hasAttribute('data-local-config')) tgt.setAttribute('data-local-config', localCfgStr);
+                if (localCwStr && !tgt.hasAttribute('data-local-colwidths')) tgt.setAttribute('data-local-colwidths', localCwStr);
             }
+
             applyColGroupHelper(table, curColWidths);
             const allCells = table.querySelectorAll('td, th');
             allCells.forEach(cell => applyNestedClassesHelper(cell, ulClass));

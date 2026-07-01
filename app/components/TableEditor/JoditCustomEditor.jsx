@@ -98,7 +98,11 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             if (editorRef.current) editorRef.current.value = '';
         },
         setFullContent: (html) => {
-            if (editorRef.current) editorRef.current.value = html;
+            if (editorRef.current?.editor) {
+                editorRef.current.editor.innerHTML = html;
+            } else if (editorRef.current) {
+                editorRef.current.value = html;
+            }
         },
         getInstance: () => editorRef.current
     }));
@@ -333,17 +337,10 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             afterInit: (instance) => {
                 editorRef.current = instance;
 
-                const MSO_PATTERN = /mso-list|mso-level|MsoNormal|mso-para-margin|hancomword|hwpf|EditMark/i;
                 const handleNativePaste = (e) => {
-                    const rawHtml = e.clipboardData?.getData('text/html') || '';
-                    if (!rawHtml) return;
-                    const hasMso = MSO_PATTERN.test(rawHtml);
-                    // 에디터 자체 출력물이 아닌 외부 테이블 감지
-                    // (tbl-st / data-theme 이 없는 <table> = Word·HWP·Excel 등에서 온 테이블)
-                    const hasExternalTable = rawHtml.includes('<table') &&
-                        !rawHtml.includes('class="tbl-st"') &&
-                        !rawHtml.includes('data-theme=');
-                    if (hasMso || hasExternalTable) pendingAutoPasteRef.current = true;
+                    if (e.clipboardData?.getData('text/html')) {
+                        pendingAutoPasteRef.current = true;
+                    }
                 };
                 if (instance.editor) {
                     instance.editor.addEventListener('paste', handleNativePaste, true);
@@ -371,7 +368,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
 
                     const titClassMap = getTitClassMap();
                     let applied = false;
-                    ['h2', 'h3', 'h4', 'h5'].forEach(tag => {
+                    ['h3', 'h4', 'h5'].forEach(tag => {
                         instance.editor.querySelectorAll(tag).forEach(el => {
                             if (el.className !== titClassMap[tag]) {
                                 el.className = titClassMap[tag];

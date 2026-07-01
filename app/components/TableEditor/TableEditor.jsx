@@ -8,6 +8,8 @@ import { cleanTableHtml, updateStylesOnly } from './cleanTableHtml';
 import TableConfigToolbar from './TableConfigToolbar';
 import { GUIDE_MESSAGES, RE_NUMERIC } from './utils/constants';
 
+const AUTO_PASTE_KEY = 'table-editor-auto-paste';
+
 import ErrorBoundary from './modal/ErrorBoundary';
 import useToast from './hooks/useToast';
 import { TableConfigProvider, useTableConfig, useTableConfigDispatch } from './TableConfigContext';
@@ -34,6 +36,34 @@ import { extractHeadingCandidates } from './utils/headingExtractor';
 const TOC_SELECTOR = 'h3, h4, h5, table, ul, ol';
 const HEADING_INDENT = { h3: 0, h4: 1, h5: 2 };
 const MAX_HISTORY = 20;
+
+// li를 목록의 제자리에서 추출하고 newEl로 대체한다 (목록을 앞/뒤로 분리)
+function replaceLiInList(li, newEl) {
+    const list = li.parentElement;
+    if (!list || (list.tagName !== 'UL' && list.tagName !== 'OL')) {
+        li.replaceWith(newEl);
+        return;
+    }
+    const items = Array.from(list.children);
+    const idx = items.indexOf(li);
+    const beforeItems = items.slice(0, idx);
+    const afterItems = items.slice(idx + 1);
+    const replacements = [];
+    if (beforeItems.length > 0) {
+        const beforeList = document.createElement(list.tagName.toLowerCase());
+        if (list.className) beforeList.className = list.className;
+        beforeItems.forEach(item => beforeList.appendChild(item));
+        replacements.push(beforeList);
+    }
+    replacements.push(newEl);
+    if (afterItems.length > 0) {
+        const afterList = document.createElement(list.tagName.toLowerCase());
+        if (list.className) afterList.className = list.className;
+        afterItems.forEach(item => afterList.appendChild(item));
+        replacements.push(afterList);
+    }
+    list.replaceWith(...replacements);
+}
 
 export default function TableEditorWrapper({ initialHtml = '', onChange }) {
     return (
@@ -74,8 +104,6 @@ function TableEditor({ initialHtml = '', onChange }) {
     const [headingCandidates, setHeadingCandidates] = useState([]);
     // 변환 이력 (되돌리기용) — 각 항목: { items: [{convId, originalTag, originalInner, originalClass}] }
     const [conversionHistory, setConversionHistory] = useState([]);
-
-    // 정렬 패널 상태 (선택된 표 위 오버레이에서 사용)
 
     const { toast, triggerToast } = useToast();
     const {
@@ -185,8 +213,26 @@ function TableEditor({ initialHtml = '', onChange }) {
     }, [toggleModal]);
 
     // ===== [붙여넣기 자동 정리] ==================================================
+    const [isAutoPasteEnabled, setIsAutoPasteEnabled] = useState(() => {
+        try {
+            const stored = localStorage.getItem(AUTO_PASTE_KEY);
+            return stored === null ? true : stored === 'true';
+        } catch { return true; }
+    });
+    const toggleAutoPaste = useCallback(() => {
+        setIsAutoPasteEnabled(prev => {
+            const next = !prev;
+            try { localStorage.setItem(AUTO_PASTE_KEY, String(next)); } catch {}
+            return next;
+        });
+    }, []);
+
     // handleManualCleanRef를 통해 항상 최신 config를 참조 (JoditCustomEditor memo로 인한 stale closure 방지)
     const handleAutoPaste = useCallback(async () => {
+        try {
+            const stored = localStorage.getItem(AUTO_PASTE_KEY);
+            if ((stored === null ? true : stored === 'true') === false) return;
+        } catch {}
         setIsCleaning(true);
         try {
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -357,26 +403,53 @@ function TableEditor({ initialHtml = '', onChange }) {
         const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
         if (!el) return;
         const levelClassMap = { h3: config.tit1Class, h4: config.tit2Class, h5: config.tit3Class };
-        // 되돌리기를 위해 원본 정보 보존 (후보 데이터 포함)
         const candidateData = headingCandidatesRef.current.find(c => c.id === id);
-        const snapshot = { convId: id, originalTag: el.tagName.toLowerCase(), originalInner: el.innerHTML, originalClass: el.className || '', candidateData };
+
+        const li = el.tagName === 'LI' ? el : el.closest('li');
+        const list = li ? li.closest('ul, ol') : null;
+
         const heading = document.createElement(level);
         if (levelClassMap[level]) heading.className = levelClassMap[level];
-        heading.innerHTML = el.innerHTML;
+        heading.innerHTML = li ? li.innerHTML : el.innerHTML;
+        heading.querySelectorAll('[data-hcand-id]').forEach(e => e.removeAttribute('data-hcand-id'));
         heading.setAttribute('data-hconv-id', id);
-        el.replaceWith(heading);
+
+        const snapshot = {
+            convId: id,
+            originalTag: li ? 'li' : el.tagName.toLowerCase(),
+            originalInner: li ? li.innerHTML : el.innerHTML,
+            originalClass: li ? (li.className || '') : (el.className || ''),
+            originalListClass: list?.className || '',
+            candidateData
+        };
+
+        if (li) {
+            replaceLiInList(li, heading);
+        } else {
+            el.replaceWith(heading);
+        }
+
         syncEditorHtml();
         setHeadingCandidates(prev => prev.filter(c => c.id !== id));
         setConversionHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), { items: [snapshot] }]);
         triggerToast('제목으로 변환했습니다.');
     }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
 
-    // 개별 무시 (마커만 제거)
+    // 개별 무시: li이면 제자리에서 p 태그로 추출, 아니면 마커만 제거
     const handleCandidateDismiss = useCallback((id) => {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance) return;
         const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
-        if (el) el.removeAttribute('data-hcand-id');
+        if (el) {
+            const li = el.tagName === 'LI' ? el : el.closest('li');
+            if (li) {
+                const p = document.createElement('p');
+                p.innerHTML = el.innerHTML;
+                replaceLiInList(li, p);
+            } else {
+                el.removeAttribute('data-hcand-id');
+            }
+        }
         syncEditorHtml();
         setHeadingCandidates(prev => prev.filter(c => c.id !== id));
     }, [syncEditorHtml]);
@@ -392,12 +465,30 @@ function TableEditor({ initialHtml = '', onChange }) {
             const { id, suggestedLevel } = cand;
             const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
             if (!el) return;
-            snapshots.push({ convId: id, originalTag: el.tagName.toLowerCase(), originalInner: el.innerHTML, originalClass: el.className || '', candidateData: cand });
+
+            const li = el.tagName === 'LI' ? el : el.closest('li');
+            const list = li ? li.closest('ul, ol') : null;
+
             const heading = document.createElement(suggestedLevel);
             if (levelClassMap[suggestedLevel]) heading.className = levelClassMap[suggestedLevel];
-            heading.innerHTML = el.innerHTML;
+            heading.innerHTML = li ? li.innerHTML : el.innerHTML;
+            heading.querySelectorAll('[data-hcand-id]').forEach(e => e.removeAttribute('data-hcand-id'));
             heading.setAttribute('data-hconv-id', id);
-            el.replaceWith(heading);
+
+            snapshots.push({
+                convId: id,
+                originalTag: li ? 'li' : el.tagName.toLowerCase(),
+                originalInner: li ? li.innerHTML : el.innerHTML,
+                originalClass: li ? (li.className || '') : (el.className || ''),
+                originalListClass: list?.className || '',
+                candidateData: cand
+            });
+
+            if (li) {
+                replaceLiInList(li, heading);
+            } else {
+                el.replaceWith(heading);
+            }
         });
         syncEditorHtml();
         if (snapshots.length) setConversionHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), { items: snapshots }]);
@@ -409,7 +500,16 @@ function TableEditor({ initialHtml = '', onChange }) {
     const handleCandidateDismissAll = useCallback(() => {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance) return;
-        instance.editor.querySelectorAll('[data-hcand-id]').forEach(el => el.removeAttribute('data-hcand-id'));
+        instance.editor.querySelectorAll('[data-hcand-id]').forEach(el => {
+            const li = el.tagName === 'LI' ? el : el.closest('li');
+            if (li) {
+                const p = document.createElement('p');
+                p.innerHTML = el.innerHTML;
+                replaceLiInList(li, p);
+            } else {
+                el.removeAttribute('data-hcand-id');
+            }
+        });
         syncEditorHtml();
         setHeadingCandidates([]);
     }, [syncEditorHtml]);
@@ -435,17 +535,49 @@ function TableEditor({ initialHtml = '', onChange }) {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance) return;
         const restoredCandidates = [];
-        last.items.forEach(({ convId, originalTag, originalInner, originalClass, candidateData }) => {
+        last.items.forEach(({ convId, originalTag, originalInner, originalClass, originalListClass, candidateData }) => {
             const el = instance.editor.querySelector(`[data-hconv-id="${convId}"]`);
             if (!el) return;
-            const restored = document.createElement(originalTag);
-            if (originalClass) restored.className = originalClass;
-            restored.innerHTML = originalInner;
-            if (candidateData) {
-                restored.setAttribute('data-hcand-id', convId);
-                restoredCandidates.push(candidateData);
+
+            if (originalTag === 'li') {
+                const li = document.createElement('li');
+                if (originalClass) li.className = originalClass;
+                li.innerHTML = originalInner;
+                if (candidateData) {
+                    li.setAttribute('data-hcand-id', convId);
+                    restoredCandidates.push(candidateData);
+                }
+                // replaceLiInList이 목록을 분리했으므로 인접 목록을 다시 병합해 복원
+                const prevSib = el.previousElementSibling;
+                const nextSib = el.nextElementSibling;
+                const prevList = (prevSib?.tagName === 'UL' || prevSib?.tagName === 'OL') ? prevSib : null;
+                const nextList = (nextSib?.tagName === 'UL' || nextSib?.tagName === 'OL') ? nextSib : null;
+                if (prevList || nextList) {
+                    const tagName = (prevList || nextList).tagName.toLowerCase();
+                    const mergedList = document.createElement(tagName);
+                    if (originalListClass) mergedList.className = originalListClass;
+                    if (prevList) Array.from(prevList.children).forEach(item => mergedList.appendChild(item));
+                    mergedList.appendChild(li);
+                    if (nextList) Array.from(nextList.children).forEach(item => mergedList.appendChild(item));
+                    el.replaceWith(mergedList);
+                    if (prevList) prevList.remove();
+                    if (nextList) nextList.remove();
+                } else {
+                    const ul = document.createElement('ul');
+                    if (originalListClass) ul.className = originalListClass;
+                    ul.appendChild(li);
+                    el.replaceWith(ul);
+                }
+            } else {
+                const restored = document.createElement(originalTag);
+                if (originalClass) restored.className = originalClass;
+                restored.innerHTML = originalInner;
+                if (candidateData) {
+                    restored.setAttribute('data-hcand-id', convId);
+                    restoredCandidates.push(candidateData);
+                }
+                el.replaceWith(restored);
             }
-            el.replaceWith(restored);
         });
         syncEditorHtml();
         setConversionHistory(prev => prev.slice(0, -1));
@@ -490,7 +622,8 @@ function TableEditor({ initialHtml = '', onChange }) {
     // ===== [열 너비 균등 분할] ===================================================
     useEffect(() => {
         if (!selectedTableNode) { setIsEqualColWidths(false); return; }
-        const col = selectedTableNode.querySelector('colgroup col[span]');
+        // :scope > colgroup 으로 자기 테이블의 colgroup만 확인 (중첩 테이블 colgroup 혼입 방지)
+        const col = selectedTableNode.querySelector(':scope > colgroup > col[span]');
         setIsEqualColWidths(!!(col && col.style.width.includes('calc')));
     }, [selectedTableNode]);
 
@@ -521,8 +654,6 @@ function TableEditor({ initialHtml = '', onChange }) {
         syncEditorHtml();
         triggerToast(isEqualColWidths ? '열 너비 설정이 해제됐습니다.' : '열 너비가 균등하게 적용됐습니다.');
     }, [selectedTableNode, isEqualColWidths, syncEditorHtml, triggerToast]);
-
-    // ===== [행 정렬] =============================================================
 
     // ===== [onChange 콜백] ======================================================
     const onChangeRef = useRef(onChange);
@@ -678,19 +809,11 @@ function TableEditor({ initialHtml = '', onChange }) {
             if (newTargetNode) {
                 newTargetNode.setAttribute('data-local-config', JSON.stringify(localConfig));
                 newTargetNode.setAttribute('data-local-colwidths', JSON.stringify(localColWidths));
-                newTargetNode.setAttribute('data-temp-id', tableEditModal.tempId);
                 targetNode.replaceWith(newTargetNode);
-                const newEditorHtml = instance.editor.innerHTML;
-                instance.value = newEditorHtml;
-
-                // Jodit DOM 재구성 후 살아있는 노드를 다시 찾아 data-local-config 보존 보장
-                const liveNode = instance.editor.querySelector(`[data-temp-id="${tableEditModal.tempId}"]`);
-                if (liveNode) {
-                    liveNode.setAttribute('data-local-config', JSON.stringify(localConfig));
-                    liveNode.setAttribute('data-local-colwidths', JSON.stringify(localColWidths));
-                }
+                // instance.value = html 호출 금지: Jodit value setter가 TD 안의 data-local-* 속성을 제거한다.
+                // DOM을 직접 교체했으므로 Jodit editor.innerHTML이 이미 올바른 상태.
                 setContent(instance.editor.innerHTML);
-                setSelectedTableNode(liveNode || newTargetNode);
+                setSelectedTableNode(newTargetNode);
                 triggerToast('선택한 표의 설정이 개별 변경되었습니다.');
             }
         }
@@ -728,6 +851,9 @@ function TableEditor({ initialHtml = '', onChange }) {
                     handleClear={handleClear}
                     handleManualClean={handleManualCleanAndDetect}
                     stats={stats}
+                    isAutoPasteEnabled={isAutoPasteEnabled}
+                    toggleAutoPaste={toggleAutoPaste}
+                    isCleaning={isCleaning}
                 />
 
                 {/* 자동 저장 복구 배너 */}

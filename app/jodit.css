@@ -20,10 +20,9 @@
 .jodit-toolbar__box:not(:empty) .jodit-toolbar-editor-collection:after {display: none;}
 .jodit-container:not(.jodit_inline) {border-radius:0.4rem 0.4rem 0.75rem 0.75rem !important;}
 .jodit-toolbar-collection_size_middle.jodit-toolbar-collection_mode_horizontal, .jodit-toolbar-collection_size_middle.jodit-toolbar-editor-collection_mode_horizontal, .jodit-toolbar-editor-collection_size_middle.jodit-toolbar-collection_mode_horizontal, .jodit-toolbar-editor-collection_size_middle.jodit-toolbar-editor-collection_mode_horizontal {background-image: none !important;}
-.jodit-workplace { flex: 1 !important; height: auto !important; overflow-y: auto !important; border-radius:0 0 0.75rem 0.75rem!important;}
+.jodit-workplace { flex: 1 !important; height: auto !important; border-radius:0 0 0.75rem 0.75rem!important;}
 .jodit-react-container { height: 100% !important;}
 .jodit-container { height: 100% !important; display: flex !important; flex-direction: column !important; }
-
 .jodit-context table tr td,
 .jodit-context table tr th,
 .jodit-wysiwyg table tr td,

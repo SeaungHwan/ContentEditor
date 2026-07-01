@@ -68,15 +68,11 @@ const ColWidthControl = React.memo(({ colWidths, setColWidths, layout, isGuideMo
     const isAutoMode = localWidths.length === 1 && localWidths[0] === 'auto-calc';
 
     const handleAutoCalcToggle = () => {
-        if (isAutoMode) {
-            setLocalWidths(['']);
-            setColWidths(['']);
-        } else {
-            setLocalWidths(['auto-calc']);
-            setColWidths(['auto-calc']);
-        }
+        if (isAutoMode) { setLocalWidths(['']); setColWidths(['']); }
+        else { setLocalWidths(['auto-calc']); setColWidths(['auto-calc']); }
     };
 
+    const sliderTranslate = isAutoMode ? '0%' : '100%';
     const displayWidths = isAutoMode ? [''] : localWidths;
 
     return (
@@ -84,83 +80,83 @@ const ColWidthControl = React.memo(({ colWidths, setColWidths, layout, isGuideMo
         className={`${layout.colWrap} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ""}`}
         data-guide={isGuideMode ? guideMessage : undefined}
       >
-        <div className={`${layout.flexCol} ${layout.gap06}`}>
-            <label>
-              <span className={layout.tit}>열 너비</span>
-            </label>
-            <div className={layout.toggleWrap}>
-              <div
-                className={layout.toggleSlider}
-                style={{
-                  transform: isAutoMode ? "translateX(0%)" : "translateX(100%)",
-                }}
-              />
-              <button type="button"
-                className={`${layout.toggleBtn} ${isAutoMode ? layout.toggleActive : ""}`}
-                onClick={handleAutoCalcToggle}
-              >
-                자동
-              </button>
-              <button type="button"
-                className={`${layout.toggleBtn} ${!isAutoMode ? layout.toggleActive : ""}`}
-                onClick={handleAutoCalcToggle}
-              >
-                수동
-              </button>
-            </div>
-        </div>
-        {!isAutoMode && (
-          <div className={`${layout.flexCol} ${layout.gap02} ${layout.colWidth}`}>
-            <div className={layout.colBox}>
-              {displayWidths.map((width, index) => (
-                <div key={index} className={layout.colItem}>
-                  <input
-                    className={`${layout.Inp} ${layout.colInp}`}
-                    ref={(el) => (inputRefs.current[index] = el)}
-                    type="text"
-                    maxLength={10}
-                    value={isAutoMode ? "" : width}
-                    placeholder="예) 20"
-                    disabled={isAutoMode}
-                    onChange={(e) => handleChange(index, e.target.value)}
-                    onBlur={() => handleBlur(index)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAdd();
-                      }
-                      if (e.key === "Backspace" && width === "" && index > 0) {
-                        e.preventDefault();
-                        inputRefs.current[index - 1]?.focus();
-                        handleRemove(index);
-                      }
-                    }}
-                  />
-
-                  <button type="button"
-                    onClick={() => handleRemove(index)}
-                    className={layout.removeBtn}
-                    title="삭제"
-                  >
-                    <i className="ri-close-fill"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div className={layout.colBtn}>
-              <button type="button"
-                onClick={handleAdd}
-                className={`${layout.autoBtn}`}
-              >
-                <span>추가</span>
-              </button>
-              <button type="button" onClick={handleClearAll} className={layout.allDeleteBtn}>
-                <span>초기화</span>
-              </button>
-            </div>
+          <div className={`${layout.flexCol} ${layout.gap06}`}>
+              <label>
+                <span className={layout.tit}>열 너비</span>
+              </label>
+              <div className={layout.toggleWrap}>
+                <div
+                  className={layout.toggleSlider}
+                  style={{ transform: `translateX(${sliderTranslate})` }}
+                />
+                <button type="button"
+                  className={`${layout.toggleBtn} ${isAutoMode ? layout.toggleActive : ""}`}
+                  onClick={handleAutoCalcToggle}
+                  title="모든 열을 균등하게 분할합니다."
+                >
+                  자동
+                </button>
+                <button type="button"
+                  className={`${layout.toggleBtn} ${!isAutoMode ? layout.toggleActive : ""}`}
+                  onClick={handleAutoCalcToggle}
+                  title="열 너비를 직접 입력합니다."
+                >
+                  수동
+                </button>
+              </div>
           </div>
-        )}
+          {!isAutoMode && (
+            <div className={`${layout.flexCol} ${layout.gap02} ${layout.colWidth}`}>
+              <div className={layout.colBox}>
+                {displayWidths.map((width, index) => (
+                  <div key={index} className={layout.colItem}>
+                    <input
+                      className={`${layout.Inp} ${layout.colInp}`}
+                      ref={(el) => (inputRefs.current[index] = el)}
+                      type="text"
+                      maxLength={10}
+                      value={width}
+                      placeholder="예) 20"
+                      disabled={false}
+                      onChange={(e) => handleChange(index, e.target.value)}
+                      onBlur={() => handleBlur(index)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAdd();
+                        }
+                        if (e.key === "Backspace" && width === "" && index > 0) {
+                          e.preventDefault();
+                          inputRefs.current[index - 1]?.focus();
+                          handleRemove(index);
+                        }
+                      }}
+                    />
+
+                    <button type="button"
+                      onClick={() => handleRemove(index)}
+                      className={layout.removeBtn}
+                      title="삭제"
+                    >
+                      <i className="ri-close-fill"></i>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className={layout.colBtn}>
+                <button type="button"
+                  onClick={handleAdd}
+                  className={`${layout.autoBtn}`}
+                >
+                  <span>추가</span>
+                </button>
+                <button type="button" onClick={handleClearAll} className={layout.allDeleteBtn}>
+                  <span>초기화</span>
+                </button>
+              </div>
+            </div>
+          )}
       </div>
     );
 });

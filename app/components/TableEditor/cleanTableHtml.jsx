@@ -130,9 +130,18 @@ const _findAncestorListByMarker = (startList, rootList, markerType) => {
     return null;
 };
 
+const isMeaninglessNode = (n) => {
+    const isEmpty = (t) => t.replace(RE_WHITESPACE, '') === '';
+    if (n.nodeType === 3 && isEmpty(n.textContent)) return true;
+    if (n.nodeType === 1) {
+        if (n.tagName === 'BR') return true;
+        if ((n.tagName === 'P' || n.tagName === 'DIV' || n.tagName === 'SPAN') && isEmpty(n.textContent) && n.querySelectorAll('img, iframe, table').length === 0) return true;
+    }
+    return false;
+};
+
 export const cleanTableHtml = (htmlString, config, colWidths = '') => {
     if (typeof window === 'undefined' || !document || !htmlString) return htmlString || '';
-
     const processText = config.isColorMode ? processTextContentColor : processTextContentNormal;
     const processTable = config.tableIsColorMode ? processTableOnlyColor : processTableOnlyNormal;
 
@@ -164,8 +173,8 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
 
             Array.from(processedDiv.children).forEach((child, i) => {
                 const cfg = tableConfigs[i];
-                if (cfg && cfg.lCfg) {
-                    child.setAttribute('data-local-config', cfg.lCfg);
+                if (cfg) {
+                    if (cfg.lCfg) child.setAttribute('data-local-config', cfg.lCfg);
                     if (cfg.lCw) child.setAttribute('data-local-colwidths', cfg.lCw);
                 }
             });
@@ -177,15 +186,6 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         }
     };
 
-        const isMeaninglessNode = (n) => {
-            const isEmpty = (t) => t.replace(RE_WHITESPACE, "") === "";
-            if (n.nodeType === 3 && isEmpty(n.textContent)) return true;
-            if (n.nodeType === 1) {
-                if (n.tagName === 'BR') return true;
-                if ((n.tagName === 'P' || n.tagName === 'DIV' || n.tagName === 'SPAN') && isEmpty(n.textContent) && n.querySelectorAll('img, iframe, table').length === 0) return true;
-            }
-            return false;
-        };
         Array.from(doc.body.childNodes).forEach(node => {
             if (node.nodeType === 1 && (node.tagName === 'TABLE' || node.querySelector('table'))) {
                 flushTextGroup();
@@ -325,6 +325,86 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
             }
         })();
 
+        // 분리된 번호형 리스트 병합
+        // 패턴: listA(번호형 li) + 중간 p 등 + listB(비번호 li가 번호형 sub-li를 포함)
+        // → 중간 요소와 비번호 li를 listA 마지막 li 내부로 이동, 번호형 sub-li를 listA 레벨로 승격
+        (() => {
+            let changed = true;
+            let _iterations = 0;
+            while (changed && _iterations < 20) {
+                changed = false;
+                _iterations++;
+                const children = Array.from(resultWrapper.children);
+                for (let i = 0; i < children.length; i++) {
+                    const listA = children[i];
+                    if (listA.tagName !== 'OL' && listA.tagName !== 'UL') continue;
+                    const lisA = Array.from(listA.children).filter(c => c.tagName === 'LI');
+                    if (!lisA.length) continue;
+                    const markerA = _detectMarkerType(lisA[0].textContent || '');
+                    if (!markerA) continue;
+
+                    // listA 이후 비리스트·비테이블 요소 수집 후 다음 리스트 탐색
+                    const betweenEls = [];
+                    let nextListIdx = -1;
+                    for (let j = i + 1; j < children.length; j++) {
+                        const el = children[j];
+                        if (el.tagName === 'OL' || el.tagName === 'UL') { nextListIdx = j; break; }
+                        if (el.tagName === 'TABLE' || (el.nodeType === 1 && el.querySelector?.('table'))) break;
+                        betweenEls.push(el);
+                    }
+                    if (nextListIdx === -1 || betweenEls.length === 0) continue;
+
+                    const listB = children[nextListIdx];
+                    const lisBArr = Array.from(listB.children).filter(c => c.tagName === 'LI');
+                    if (!lisBArr.length) continue;
+
+                    // listB 내에 markerA와 같은 번호형 li(직접 또는 비번호 li의 sub-li)가 있는지 확인
+                    const hasPromotable = lisBArr.some(li => {
+                        if (_detectMarkerType(li.textContent || '') === markerA) return true;
+                        return Array.from(li.children)
+                            .filter(c => c.tagName === 'OL' || c.tagName === 'UL')
+                            .some(sub => {
+                                const firstLi = Array.from(sub.children).find(c => c.tagName === 'LI');
+                                return firstLi && _detectMarkerType(firstLi.textContent || '') === markerA;
+                            });
+                    });
+                    if (!hasPromotable) continue;
+
+                    const lastLiA = lisA[lisA.length - 1];
+                    // 중간 요소를 마지막 li로 이동
+                    betweenEls.forEach(el => lastLiA.appendChild(el));
+
+                    // sub-list 클래스 결정 (list_st1 → list_st2)
+                    const cm = (listA.className || '').match(/^(.*?)(\d+)$/);
+                    const subListClass = cm ? `${cm[1]}${parseInt(cm[2]) + 1}` : (listA.className || '');
+
+                    const toPromote = [];
+                    lisBArr.forEach(li => {
+                        if (_detectMarkerType(li.textContent || '') === markerA) {
+                            toPromote.push(li); return;
+                        }
+                        // 비번호 li: 내부 번호형 sub-li 추출 후 비번호 li는 sub-list로
+                        Array.from(li.children)
+                            .filter(c => c.tagName === 'OL' || c.tagName === 'UL')
+                            .forEach(sub => {
+                                const toExtract = Array.from(sub.children)
+                                    .filter(c => c.tagName === 'LI' && _detectMarkerType(c.textContent || '') === markerA);
+                                toExtract.forEach(item => { sub.removeChild(item); toPromote.push(item); });
+                                if (!sub.querySelector('li')) sub.remove();
+                            });
+                        const subList = document.createElement(listA.tagName);
+                        subList.className = subListClass;
+                        subList.appendChild(li);
+                        lastLiA.appendChild(subList);
+                    });
+                    toPromote.forEach(li => listA.appendChild(li));
+                    listB.remove();
+                    changed = true;
+                    break;
+                }
+            }
+        })();
+
         resultWrapper.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6').forEach(el => {
             if (el.classList?.contains('box-st') || el.classList?.contains('box_st2')) return;
             const text = el.textContent.replace(RE_WHITESPACE, '').trim();
@@ -382,7 +462,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
     }
 
     // ol li > span.num 내 원형 특수문자(① ② ③ 등)를 아라비아 숫자로 변환
-    resultWrapper.querySelectorAll('ol li span.mrk').forEach(span => {
+    resultWrapper.querySelectorAll('ol li span.num').forEach(span => {
         const original = span.textContent.trim();
         const converted = convertCircleToArabic(original);
         if (converted !== original) span.textContent = converted;

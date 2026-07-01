@@ -129,6 +129,70 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         return null;
     };
 
+    // <br>로 구분된 마커 항목들을 독립된 <p> 블록으로 분리
+    const INLINE_MARKER_RE = /^\s*(?:[①-⓿㉐-㉟㊱-㊿㈀-㈞⒜-ⓩ❶-➓]|[※*])/;
+
+    const segmentByBr = (el) => {
+        const segs = [];
+        let cur = [];
+        for (const child of el.childNodes) {
+            if (child.nodeType === 1 && child.tagName === 'BR') {
+                segs.push(cur);
+                cur = [];
+            } else {
+                cur.push(child);
+            }
+        }
+        segs.push(cur);
+        return segs.filter(s => s.some(n => (n.textContent || '').trim()));
+    };
+
+    const normalizeBrBlocks = (container) => {
+        // UL/OL: LI 안에 <br> + 마커가 있으면 개별 <p>로 언래핑
+        Array.from(container.querySelectorAll('ul, ol')).forEach(list => {
+            const lis = Array.from(list.querySelectorAll('li'));
+            const needsUnwrap = lis.some(li => {
+                const hasBr = Array.from(li.childNodes).some(c => c.nodeType === 1 && c.tagName === 'BR');
+                return hasBr && INLINE_MARKER_RE.test((li.textContent || '').trim());
+            });
+            if (!needsUnwrap) return;
+            const parent = list.parentNode;
+            if (!parent) return;
+            const anchor = list.nextSibling;
+            lis.forEach(li => {
+                segmentByBr(li).forEach(seg => {
+                    const p = document.createElement('p');
+                    seg.forEach(n => p.appendChild(n.cloneNode(true)));
+                    parent.insertBefore(p, anchor);
+                });
+            });
+            parent.removeChild(list);
+        });
+
+        // P/DIV: <br> + 마커가 혼재하면 <br> 기준으로 별도 <p>로 분리
+        Array.from(container.children).forEach(block => {
+            if (block.tagName !== 'P' && block.tagName !== 'DIV') return;
+            const hasBr = Array.from(block.childNodes).some(c => c.nodeType === 1 && c.tagName === 'BR');
+            if (!hasBr) return;
+            const segs = segmentByBr(block);
+            if (segs.length <= 1) return;
+            const hasMarker = segs.some(seg =>
+                INLINE_MARKER_RE.test(seg.map(n => n.textContent || '').join('').trim())
+            );
+            if (!hasMarker) return;
+            const parent = block.parentNode;
+            const anchor = block.nextSibling;
+            segs.forEach(seg => {
+                const p = document.createElement('p');
+                seg.forEach(n => p.appendChild(n.cloneNode(true)));
+                parent.insertBefore(p, anchor);
+            });
+            parent.removeChild(block);
+        });
+    };
+
+    normalizeBrBlocks(cell);
+
     const childNodes = Array.from(cell.childNodes);
     const rootNodes = [];
     const contextStack = [];
@@ -150,7 +214,9 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         const node = childNodes[i];
         if (node.nodeType === 3 && !node.textContent.trim()) continue;
         if (node.nodeType === 1 && node.tagName !== 'BR' && !node.textContent.trim() && node.children.length === 0) continue;
-        
+
+        openBracketCount = 0;
+
         if (node.nodeType === 1 && /^H[1-6]$/i.test(node.tagName)) {
             flushLastPara();
             rootNodes.push(node);
@@ -212,14 +278,18 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         if (isBuAtte && !isInsideParen) {
             flushLastPara();
             if (noAtte) {
-                // bu_atte 변환 비활성화: 원본 기호 그대로 평범한 p 태그로 유지
+                // bu_atte 변환 비활성화: 리스트 컨텍스트 유지하며 연속 텍스트로 처리
                 const p = document.createElement('p');
                 if (node.nodeType === 3) p.textContent = node.textContent;
                 else Array.from(node.childNodes).forEach(child => p.appendChild(child.cloneNode(true)));
-                rootNodes.push(p);
+                if (lastLi) {
+                    lastLi.appendChild(document.createElement('br'));
+                    lastLi.appendChild(p);
+                } else {
+                    rootNodes.push(p);
+                    contextStack.length = 0;
+                }
                 lastBuAtte = null;
-                lastLi = null;
-                contextStack.length = 0;
                 continue;
             }
             const p = document.createElement('p');
@@ -416,17 +486,28 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         } else {
             if (cleanTextForBreak) lastBuAtte = null; // 일반 텍스트가 나오면 연결을 끊습니다.
             
+            const isTableWrapper = node.tagName === 'DIV' && node.querySelector('table');
             if (lastLi) {
-                flushLastPara(); 
-                lastLi.appendChild(document.createElement('br'));
-                const childrenToMove = isBlockElement ? node.childNodes : [node];
-                Array.from(childrenToMove).forEach(cn => lastLi.appendChild(cn));
+                flushLastPara();
+                if (isTableWrapper) {
+                    rootNodes.push(node);
+                    lastLi = null;
+                    contextStack.length = 0;
+                } else {
+                    lastLi.appendChild(document.createElement('br'));
+                    const childrenToMove = isBlockElement ? node.childNodes : [node];
+                    Array.from(childrenToMove).forEach(cn => lastLi.appendChild(cn));
+                }
             } else {
                 if (isBlockElement) {
                     flushLastPara();
-                    const p = document.createElement('p');
-                    while (node.firstChild) p.appendChild(node.firstChild);
-                    if (p.innerHTML.trim()) rootNodes.push(p);
+                    if (isTableWrapper) {
+                        rootNodes.push(node);
+                    } else {
+                        const p = document.createElement('p');
+                        while (node.firstChild) p.appendChild(node.firstChild);
+                        if (p.innerHTML.trim()) rootNodes.push(p);
+                    }
                 } else {
                     if (!lastPara) lastPara = document.createElement('p');
                     lastPara.appendChild(node);
@@ -458,7 +539,7 @@ export const processMsoLists = (container) => {
     const listMap = new Map();
     elements.forEach(el => {
         const styleStr = el.getAttribute('style') || '';
-        const m = styleStr.match(/mso-list:\s*l(\w+)\s+level(\d+)/i);
+        const m = styleStr.match(/mso-list:\s*l(\w+)\s+level(\d+)(?:\s+lfo(\d+))?/i);
         if (!m) return;
         matchCache.set(el, m);
         const [, listId, lvStr] = m;
@@ -485,11 +566,72 @@ export const processMsoLists = (container) => {
         }
     });
 
+    // Phase 2.5: Ignore span이 없는 항목들에서 "outer" lfo 감지
+    // (다른 lfo들을 사이에 끼운 채 반복 등장하는 lfo → 상위 레벨로 처리)
+    const noSpanLfoSeq = [];
+    elements.forEach(el => {
+        const m = matchCache.get(el);
+        if (!m || ignoreSpanCache.get(el) || !m[3]) return;
+        noSpanLfoSeq.push(m[3]);
+    });
+    const lfoDepth = {};
+    if (noSpanLfoSeq.length > 1) {
+        const lfoPos = {};
+        noSpanLfoSeq.forEach((lfo, i) => { (lfoPos[lfo] = lfoPos[lfo] || []).push(i); });
+        const lfoScore = {}, lfoRange = {};
+        Object.entries(lfoPos).forEach(([lfo, positions]) => {
+            lfoRange[lfo] = [positions[0], positions[positions.length - 1]];
+            if (positions.length < 2) return;
+            const others = new Set();
+            for (let i = 0; i < positions.length - 1; i++) {
+                for (let k = positions[i] + 1; k < positions[i + 1]; k++) {
+                    if (noSpanLfoSeq[k] !== lfo) others.add(noSpanLfoSeq[k]);
+                }
+            }
+            if (others.size > 0) lfoScore[lfo] = others.size;
+        });
+        // scored lfo depth: 자신의 range를 포함하는 다른 scored lfo 수 + 1
+        const scoredLfos = Object.keys(lfoScore);
+        scoredLfos.forEach(lfo => {
+            let depth = 1;
+            const [minA, maxA] = lfoRange[lfo];
+            scoredLfos.forEach(other => {
+                if (other === lfo) return;
+                const [minB, maxB] = lfoRange[other];
+                if (minB <= minA && maxA <= maxB) depth++;
+            });
+            lfoDepth[lfo] = depth;
+        });
+        // non-scored lfo depth:
+        //   1) 자신의 위치를 포함하는 가장 좁은 scored lfo의 depth + 1
+        //   2) 없으면 직전 scored lfo 중 가장 최근 것의 depth + 1
+        //   3) 없으면 0 (최상위)
+        noSpanLfoSeq.forEach((lfo, pos) => {
+            if (lfoDepth[lfo] !== undefined) return;
+            let innermostDepth = -1, innermostSpan = Infinity;
+            scoredLfos.forEach(scored => {
+                const [minB, maxB] = lfoRange[scored];
+                if (minB <= pos && pos <= maxB) {
+                    const span = maxB - minB;
+                    if (span < innermostSpan) { innermostSpan = span; innermostDepth = lfoDepth[scored]; }
+                }
+            });
+            if (innermostDepth >= 0) { lfoDepth[lfo] = innermostDepth + 1; return; }
+            let mostRecentDepth = -1, mostRecentPos = -1;
+            scoredLfos.forEach(scored => {
+                lfoPos[scored].forEach(p => {
+                    if (p < pos && p > mostRecentPos) { mostRecentPos = p; mostRecentDepth = lfoDepth[scored]; }
+                });
+            });
+            lfoDepth[lfo] = mostRecentDepth >= 0 ? mostRecentDepth + 1 : 0;
+        });
+    }
+
     // Phase 3: Remove Ignore spans and insert normalized markers
     elements.forEach(el => {
         const m = matchCache.get(el);
         if (!m) return;
-        const [, listId, lvStr] = m;
+        const [, listId, lvStr, lfoId] = m;
         const level = parseInt(lvStr, 10);
 
         const ignoreSpan = ignoreSpanCache.get(el) || null;
@@ -507,7 +649,9 @@ export const processMsoLists = (container) => {
         } else if (extractedChar) {
             marker = extractedChar + ' ';
         } else {
-            marker = MSO_LEVEL_MARKERS[(level - 1) % MSO_LEVEL_MARKERS.length];
+            // Ignore span 없음: depth 맵으로 다단 중첩 결정
+            const depth = (lfoId && lfoDepth[lfoId] !== undefined) ? lfoDepth[lfoId] : level - 1;
+            marker = MSO_LEVEL_MARKERS[depth % MSO_LEVEL_MARKERS.length];
         }
 
         const text = el.textContent.trim();

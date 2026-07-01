@@ -28,7 +28,7 @@
  *       6. traverseAndClean: 허용 태그/속성 최종 정제 및 색상 클래스 변환.
  */
 
-import { traverseAndClean, performCleanup, removeLeadingCharsFromDOM } from './htmlCleaners';
+import { traverseAndClean, performCleanup, removeLeadingCharsFromDOM, mergeAdjacentColorSpans } from './htmlCleaners';
 import { applyNestedClassesHelper, processCellContent, checkTitleMatch, processMsoLists } from './listExtractors';
 import { UL_NONE_VALUE } from './constants';
 
@@ -117,6 +117,10 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
 
     // 3. 최종 클린업
     traverseAndClean(containerDOM, isColorMode, isColorClassMode);
+
+    // 4. traverseAndClean이 색상을 정규화한 뒤 동일 class/style의 인접 span을 재병합
+    //    (정규화 전 스타일 순서/속성 차이로 performCleanup에서 병합 실패한 span 처리)
+    if (isColorMode) mergeAdjacentColorSpans(containerDOM);
 };
 
 export const processTextContentNormal = (containerDOM, config) => {

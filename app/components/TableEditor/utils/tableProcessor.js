@@ -36,7 +36,7 @@
  *     - 열 수 불일치 시 false 반환 (TableEditor.jsx에서 toast 오류 메시지 표시).
  */
 
-import { traverseAndClean, performCleanup } from './htmlCleaners';
+import { traverseAndClean, performCleanup, mergeAdjacentColorSpans } from './htmlCleaners';
 import { applyTableSemantics, applyVerticalHeaders } from './tableFormatters';
 import { applyNestedClassesHelper, processCellContent, processMsoLists } from './listExtractors';
 import { UL_NONE_VALUE, RE_NUMERIC } from './constants';
@@ -67,10 +67,6 @@ export const processTableOnlyColor = (sourceEl, config, colWidths) => {
     return processTableOnlyBase(sourceEl, config, colWidths, true, config.tableIsColorClassMode);
 };
 
-
-// ==========================================
-// 🛠️ 세부 도우미 함수들 (Helper Functions)
-// ==========================================
 
 const restoreOriginHtml = (container) => {
     container.querySelectorAll('[data-origin-html]').forEach(el => {
@@ -131,9 +127,12 @@ const applyTableFormats = (container, config, colWidths) => {
         let curUseAtteMarker = tableUseAtteMarker;
 
         let searchNode = table;
-        if (table.parentElement && table.parentElement.hasAttribute('data-local-config')) {
+        if (table.parentElement && (
+            table.parentElement.hasAttribute('data-local-config') ||
+            table.parentElement.hasAttribute('data-local-colwidths')
+        )) {
             searchNode = table.parentElement;
-        } else if (table.hasAttribute('data-local-config')) {
+        } else if (table.hasAttribute('data-local-config') || table.hasAttribute('data-local-colwidths')) {
             searchNode = table;
         }
 
@@ -165,28 +164,42 @@ const applyTableFormats = (container, config, colWidths) => {
         Array.from(table.rows).forEach(row => {
             Array.from(row.cells).forEach(cell => {
                 if (!cell.closest('thead') && (cell.tagName === 'TD' || cell.tagName === 'TH')) {
-                    
                     const noUl = ulClass === UL_NONE_VALUE;
                     const noAtte = curUseAtteMarker === false;
                     processCellContent(cell, keepMarker, false, null, null, null, olType, noUl, noAtte);
                     applyNestedClassesHelper(cell, ulClass, tableListStartFrom2 ? 1 : 0);
                 }
                 if (!cell.querySelector('table') && !cell.textContent.trim()) cell.innerHTML = '';
-                
+
                 performCleanup(cell);
                 traverseAndClean(cell, isColorMode, isColorClassMode);
-                
-            const hasUl = (ulClass && ulClass.trim()) ? cell.querySelector(`ul[class*="${ulClass.trim()}"]`) : false;
-            const hasOl = cell.querySelector('ol[class*="order-st"]');
-            const hasAtte = cell.querySelector('.bu_atte');
+                if (isColorMode) mergeAdjacentColorSpans(cell);
 
-            if (hasUl || hasOl || hasAtte) {
-                cell.classList.remove('ac', 'ar');
-                cell.classList.add('al');
-            }
+                const hasUl = (ulClass && ulClass.trim()) ? cell.querySelector(`ul[class*="${ulClass.trim()}"]`) : false;
+                const hasOl = cell.querySelector('ol[class*="order-st"]');
+                const hasAtte = cell.querySelector('.bu_atte');
+
+                if (hasUl || hasOl || hasAtte) {
+                    cell.classList.remove('ac', 'ar');
+                    cell.classList.add('al');
+                }
             });
         });
         applyVerticalHeaders(table, curIsVertical);
+
+        // 중첩 테이블의 data-local-config는 flushTableGroup이 복원하지 않으므로
+        // applyTableSemantics 이후 래퍼 div 또는 테이블 자체에 직접 복원한다.
+        if (isNested && (localCfgStr || localCwStr)) {
+            const wrapper = table.parentElement;
+            const target = (wrapper && wrapper.tagName === 'DIV' && wrapper !== container)
+                ? wrapper : table;
+            if (localCfgStr) target.setAttribute('data-local-config', localCfgStr);
+            if (localCwStr) target.setAttribute('data-local-colwidths', localCwStr);
+            if (target !== table) {
+                if (localCwStr) table.setAttribute('data-local-colwidths', localCwStr);
+                if (localCfgStr) table.setAttribute('data-local-config', localCfgStr);
+            }
+        }
     });
 };
 

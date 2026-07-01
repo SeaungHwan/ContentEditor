@@ -51,12 +51,14 @@ export default function useEditorActions({
 
     // 2. 수동 정리
     const handleManualClean = useCallback(async ({ clearFirst = false } = {}) => {
-        const currentVal = editorRef.current?.getInstance()?.value;
+        // instance.value는 Jodit 내부 처리 중 data-local-config 등 커스텀 속성이 소실될 수 있으므로
+        // 살아있는 DOM(editor.innerHTML)을 우선 읽는다.
+        const jodit = editorRef.current?.getInstance();
+        const currentVal = jodit?.editor?.innerHTML || jodit?.value;
         if (!hasRealContent(currentVal)) return triggerToast('정리할 내용이 없습니다.');
 
         if (clearFirst) {
-            const instance = editorRef.current?.getInstance();
-            if (instance) instance.value = '';
+            if (jodit) jodit.value = '';
         }
 
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
@@ -64,7 +66,6 @@ export default function useEditorActions({
         try {
             const cleanedHtml = cleanTableHtml(currentVal, config, formattedWidthString);
             const { html: noEmptyHtml } = removeEmptyRowsColsFromHtml(cleanedHtml);
-
             if (editorRef.current) editorRef.current.setFullContent(noEmptyHtml);
             setContent(noEmptyHtml);
             triggerToast('문서 정리가 완료되었습니다.');
@@ -76,12 +77,14 @@ export default function useEditorActions({
 
     // 3. 복사하기
     const handleCopy = useCallback(async () => {
-        const currentVal = editorRef.current?.getInstance()?.value;
+        const joditInst = editorRef.current?.getInstance();
+        const currentVal = joditInst?.editor?.innerHTML || joditInst?.value;
         if (!currentVal) return triggerToast('복사할 내용이 없습니다.');
 
         let finalHtml = updateStylesOnly(currentVal, config, formattedWidthString);
 
         const tempDoc = getDOMParser().parseFromString(finalHtml, 'text/html');
+        tempDoc.querySelectorAll('[data-jodit-temp]').forEach(el => el.remove());
         ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id']
             .forEach(attr => tempDoc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr)));
         tempDoc.querySelectorAll('td, th').forEach(cell => {

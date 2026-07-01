@@ -9,7 +9,7 @@ import { getDOMParser } from './htmlCleaners';
 
 // 패턴 → 레벨 매핑 (우선순위 순)
 const PATTERNS = [
-    { re: /^제\s*\d+\s*(편|장)/,              level: 'h2', label: '편/장' },
+    { re: /^제\s*\d+\s*(편|장)/,              level: 'h3', label: '편/장' },
     { re: /^제\s*\d+\s*(절|조)/,              level: 'h3', label: '절/조' },
     { re: /^제\s*\d+\s*(항|호)/,              level: 'h4', label: '항/호' },
     { re: /^\d{1,2}\.\s+\S/,                  level: 'h3', label: '번호' },
@@ -53,8 +53,8 @@ export function extractHeadingCandidates(html) {
     const doc = parser.parseFromString(clean, 'text/html');
     const candidates = [];
 
-    // 표·목록 밖의 블록 요소만 대상
-    const blocks = Array.from(doc.body.querySelectorAll('p, div'))
+    // 표·목록 밖의 블록 요소 (p, div)
+    const textBlocks = Array.from(doc.body.querySelectorAll('p, div'))
         .filter(el =>
             !el.closest('table') &&
             !el.closest('ul') &&
@@ -62,9 +62,15 @@ export function extractHeadingCandidates(html) {
             !el.querySelector('table, ul, ol')
         );
 
-    blocks.forEach((el, idx) => {
+    // 목록 항목 (li): 표 안 제외, 하위 목록 없는 단순 항목만
+    const liBlocks = Array.from(doc.body.querySelectorAll('li'))
+        .filter(el =>
+            !el.closest('table') &&
+            !el.querySelector('table, ul, ol')
+        );
+
+    [...textBlocks, ...liBlocks].forEach((el) => {
         const tag = el.tagName.toLowerCase();
-        // 이미 heading이면 제외
         if (HEADING_TAGS.has(tag)) return;
 
         const text = el.textContent?.trim() || '';
@@ -77,23 +83,15 @@ export function extractHeadingCandidates(html) {
         for (const p of PATTERNS) {
             if (p.re.test(text)) {
                 if (p.label === '번호') {
-                    const n = getSeqNum(el);
-                    const prevN = getSeqNum(blocks[idx - 1]);
-                    const nextN = getSeqNum(blocks[idx + 1]);
-                    if ((prevN !== null && prevN === n - 1) || (nextN !== null && nextN === n + 1)) return;
-                    // 인접 형제가 목록이면 번호 목록의 일부 (갭 있는 1,3,5,7 구조 대응)
-                    const ps = el.previousElementSibling;
-                    const ns = el.nextElementSibling;
-                    if ((ps && (ps.tagName === 'UL' || ps.tagName === 'OL')) ||
-                        (ns && (ns.tagName === 'UL' || ns.tagName === 'OL'))) return;
                     matched = p; confidence = 'medium'; break;
                 }
                 matched = p; confidence = 'high'; break;
             }
         }
 
-        // 2순위: 굵은 글씨만 있는 짧은 단락 (medium confidence)
+        // 2순위: 굵은 글씨만 있는 짧은 단락 (li는 제외)
         if (!matched) {
+            if (tag === 'li') return;
             const firstChild = el.children[0];
             const isBoldOnly =
                 el.children.length === 1 &&

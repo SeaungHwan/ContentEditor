@@ -76,10 +76,11 @@ export const applyColGroupHelper = (table, colWidths) => {
     }
 };
 
+
 export const applyVerticalHeaders = (table, isVerticalHeader) => {
     table.querySelectorAll('th').forEach(th => {
         const colspan = parseInt(th.getAttribute('colspan') || '1', 10);
-        if (colspan > 1) return; 
+        if (colspan > 1) return;
 
         if (isVerticalHeader) {
             if (!th.hasAttribute('data-origin-html')) th.setAttribute('data-origin-html', th.innerHTML);
@@ -93,13 +94,13 @@ export const applyVerticalHeaders = (table, isVerticalHeader) => {
             }
             for (let i = 0; i < textNodes.length; i++) {
                 const txtNode = textNodes[i];
-                const chars = txtNode.nodeValue.replace(/\s+/g, '').split(''); 
+                const chars = txtNode.nodeValue.replace(/\s+/g, '').split('');
                 const frag = document.createDocumentFragment();
                 chars.forEach((char, idx) => {
                     frag.appendChild(document.createTextNode(char));
                     if (idx < chars.length - 1 || i < textNodes.length - 1) {
                         const br = document.createElement('br');
-                        br.className = 'vt-br'; 
+                        br.className = 'vt-br';
                         frag.appendChild(br);
                     }
                 });
@@ -116,11 +117,15 @@ export const applyVerticalHeaders = (table, isVerticalHeader) => {
     });
 };
 
-export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths) => {
+// rootContainer: 루트 div와의 비교가 필요한 경우(styleUpdater) 전달. null이면 체크 생략.
+export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null) => {
     if (isWrapDiv) {
         table.removeAttribute('class');
         const parent = table.parentElement;
-        if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2')) { 
+        if (parent && parent.tagName.toLowerCase() === 'div'
+            && !parent.classList.contains('box-st')
+            && !parent.classList.contains('box_st2')
+            && parent !== rootContainer) {
             if (wClass) parent.className = wClass;
             else parent.removeAttribute('class');
         } else {
@@ -132,12 +137,18 @@ export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, he
     } else {
         if (wClass) table.className = wClass;
         else table.removeAttribute('class');
-        
         const parent = table.parentElement;
-        if (parent && parent.tagName.toLowerCase() === 'div' && !parent.classList.contains('box-st') && !parent.classList.contains('box_st2')) {
+        if (parent && parent.tagName.toLowerCase() === 'div'
+            && !parent.classList.contains('box-st')
+            && !parent.classList.contains('box_st2')
+            && parent !== rootContainer) {
             parent.replaceWith(table);
         }
     }
+};
+
+export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths) => {
+    applyWrapDiv(table, wClass, isWrapDiv);
 
     const newThead = document.createElement('thead');
     const newTbody = document.createElement('tbody');

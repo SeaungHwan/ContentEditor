@@ -9,7 +9,9 @@ const TableConfigToolbar = React.memo(({
     isGuideMode, setIsGuideMode, toggleModal, modals,
     handleCopy, handleClear, handleManualClean,
     stats,
+    isAutoPasteEnabled, toggleAutoPaste,
 }) => {
+    const isSpinning = isAutoPasteEnabled;
     return (
         <div className={layout.tableBtnWrap}>
             <div className={layout.sidebarWrapper}>
@@ -42,11 +44,19 @@ const TableConfigToolbar = React.memo(({
                         <button type="button" onClick={handleClear} className={`${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.removeBtn : undefined} title='전체 삭제'>
                             <img src='/00_common/images/sub_com/btn_ico04.svg' alt='전체 삭제'/><span>전체 삭제</span>
                         </button>
-
-                        
                     </div>
 
                     <div className={layout.homeWrap}>
+                        <button
+                            type="button"
+                            onClick={toggleAutoPaste}
+                            className={`${layout.guideBtn} ${isAutoPasteEnabled ? layout.pri : ''}`}
+                            title={isAutoPasteEnabled ? '자동 정리 켜짐 (클릭하여 끄기)' : '자동 정리 꺼짐 (클릭하여 켜기)'}
+                        >
+                            <div className={layout.guide}>
+                                <i className={`ri-refresh-line${isSpinning ? ` ${layout.spinning}` : ''}`} style={{ color: '#fff' }} />
+                            </div>
+                        </button>
                         <button type="button" className={`${layout.guideBtn} ${isGuideMode ? `${layout.guideTarget} ${layout.guideLeft}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.guideNotice : undefined} onClick={() => toggleModal('guide', true)} title='주의점'>
                             <div className={layout.guide}><img src='/00_common/images/sub_com/menuBtn6.svg' alt='아이콘'/></div>
                         </button>
