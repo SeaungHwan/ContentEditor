@@ -16,6 +16,10 @@
  *     - ol은 항상 'list_ol1', 'list_ol2' … 사용 (olBaseName='list_ol' 고정).
  *     - levelOffset: GlobalTableConfigModal의 '리스트 시작 2' 옵션 적용 시 1 전달.
  *
+ *   flattenHeaderCell(cell)
+ *     - th 셀 전용. ul/ol/li를 <br> 구분 텍스트로 풀어내고 bu_atte 클래스를 제거해
+ *       th 내부에 리스트/bu_atte 구조가 절대 남지 않도록 한다.
+ *
  *   processCellContent(cell, keepMarker, isOuterText, tit1, tit2, tit3, olType, noUl)
  *     - cell의 childNodes를 순회하며 마커 패턴에 따라 ul/ol/li로 구조화한다.
  *     - 처리 우선순위:
@@ -103,6 +107,24 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0)
     };
     const rootLists = Array.from(cell.childNodes).filter(n => n.tagName === 'UL' || n.tagName === 'OL');
     rootLists.forEach(list => processNode(list));
+};
+
+// th 셀은 ul/ol/li, bu_atte 구조가 절대 만들어지면 안 되므로 processCellContent 대신 호출한다.
+// 이미 존재하는 ul/ol/li(붙여넣기 등으로 유입)는 li 내용을 <br>로 이어 붙인 순수 텍스트로 풀어내고,
+// bu_atte 클래스는 제거해 이후 performCleanup이 일반 p처럼 <br>로 처리하게 한다.
+export const flattenHeaderCell = (cell) => {
+    let list;
+    while ((list = cell.querySelector('ul, ol'))) {
+        const items = Array.from(list.children).filter(li => li.tagName === 'LI');
+        const frag = document.createDocumentFragment();
+        items.forEach((li, idx) => {
+            while (li.firstChild) frag.appendChild(li.firstChild);
+            if (idx < items.length - 1) frag.appendChild(document.createElement('br'));
+        });
+        list.replaceWith(frag);
+    }
+    cell.querySelectorAll('span.num').forEach(span => span.replaceWith(...span.childNodes));
+    cell.querySelectorAll('p.bu_atte').forEach(p => p.classList.remove('bu_atte'));
 };
 
 export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false) => {

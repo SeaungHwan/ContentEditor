@@ -26,7 +26,8 @@
  *     - 모든 테이블을 역순(중첩 안쪽부터) 처리:
  *       · data-local-config/colwidths로 테이블별 개별 설정 적용
  *       · applyTableSemantics: isWrapDiv / wrapperClassName / thead-tbody 분리 / caption 자동 생성
- *       · processCellContent: 각 td/th 내부 리스트 변환 (마커 감지 → ul/ol/li 구조화)
+ *       · processCellContent: 각 td 내부 리스트 변환 (마커 감지 → ul/ol/li 구조화)
+ *       · flattenHeaderCell: th는 리스트/bu_atte 구조를 만들지 않고 순수 텍스트로 평탄화
  *       · applyNestedClassesHelper: ul/ol에 list_st1, list_st2 등 depth 클래스 적용
  *       · applyVerticalHeaders: th 세로 방향 변환
  *       · performCleanup / traverseAndClean: 최종 정제
@@ -38,7 +39,7 @@
 
 import { traverseAndClean, performCleanup, mergeAdjacentColorSpans } from './htmlCleaners';
 import { applyTableSemantics, applyVerticalHeaders } from './tableFormatters';
-import { applyNestedClassesHelper, processCellContent, processMsoLists } from './listExtractors';
+import { applyNestedClassesHelper, processCellContent, processMsoLists, flattenHeaderCell } from './listExtractors';
 import { UL_NONE_VALUE, RE_NUMERIC } from './constants';
 
 
@@ -163,7 +164,9 @@ const applyTableFormats = (container, config, colWidths) => {
 
         Array.from(table.rows).forEach(row => {
             Array.from(row.cells).forEach(cell => {
-                if (!cell.closest('thead') && (cell.tagName === 'TD' || cell.tagName === 'TH')) {
+                if (cell.tagName === 'TH') {
+                    flattenHeaderCell(cell);
+                } else if (!cell.closest('thead') && cell.tagName === 'TD') {
                     const noUl = ulClass === UL_NONE_VALUE;
                     const noAtte = curUseAtteMarker === false;
                     processCellContent(cell, keepMarker, false, null, null, null, olType, noUl, noAtte);
