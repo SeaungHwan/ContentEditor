@@ -142,10 +142,17 @@ function TableEditor({ initialHtml = '', onChange }) {
     useEffect(() => { handleCopyRef.current = handleCopy; }, [handleCopy]);
 
     // ===== [제목 후보 감지] ========================================================
+    const headingCacheRef = useRef({ html: '', result: null });
     const runHeadingDetect = useCallback((htmlOverride) => {
         const html = htmlOverride ?? (editorComponentRef.current?.getInstance()?.value || '');
         if (!html) return;
-        const { markedHtml, candidates } = extractHeadingCandidates(html);
+        let markedHtml, candidates;
+        if (headingCacheRef.current.html === html && headingCacheRef.current.result) {
+            ({ markedHtml, candidates } = headingCacheRef.current.result);
+        } else {
+            ({ markedHtml, candidates } = extractHeadingCandidates(html));
+            headingCacheRef.current = { html, result: { markedHtml, candidates } };
+        }
         if (!candidates.length) { setHeadingCandidates([]); return; }
         const instance = editorComponentRef.current?.getInstance();
         if (instance) {
@@ -257,44 +264,61 @@ function TableEditor({ initialHtml = '', onChange }) {
 
     // ===== [문서 아웃라인 목차] ====================================================
     // h2~h5, table, ul/ol을 DOM 순서대로 수집 (중첩 표·목록 제외)
-    const tocItems = useMemo(() => {
-        if (!debouncedContent) return [];
-        try {
-            const doc = getDOMParser().parseFromString(debouncedContent, 'text/html');
-            const allEls = Array.from(doc.querySelectorAll(TOC_SELECTOR));
-            let tableSeq = 0, listSeq = 0;
-            const items = [];
-            allEls.forEach((el, domIndex) => {
-                const tag = el.tagName.toLowerCase();
-                if (tag === 'table' && el.parentElement?.closest('table')) return;
-                if ((tag === 'ul' || tag === 'ol') && el.parentElement?.closest('ul, ol')) return;
-
-                let type, fullLabel, indent;
-                if (tag.startsWith('h')) {
-                    type = 'heading';
-                    fullLabel = el.textContent?.trim() || '제목';
-                    indent = HEADING_INDENT[tag] ?? 0;
-                } else if (tag === 'table') {
-                    type = 'table';
-                    tableSeq++;
-                    const cap = el.querySelector('caption')?.textContent?.trim();
-                    const th  = el.querySelector('th')?.textContent?.trim();
-                    const td  = el.querySelector('td')?.textContent?.trim();
-                    fullLabel = cap || th || td || `표 ${tableSeq}`;
-                    indent = 0;
-                } else {
-                    type = 'list';
-                    listSeq++;
-                    const li = el.querySelector('li')?.textContent?.trim();
-                    fullLabel = li || `목록 ${listSeq}`;
-                    indent = 0;
-                }
-                const label = fullLabel.length > 18 ? fullLabel.slice(0, 18) + '…' : fullLabel;
-                items.push({ domIndex, tag, type, label, fullLabel, indent });
-            });
-            return items;
-        } catch { return []; }
-    }, [debouncedContent]);
+    // showToc가 닫혀있으면 파싱을 스킵하고 브라우저 유휴 시간에 비동기 처리
+    const [tocItems, setTocItems] = useState([]);
+    const tocIdleRef = useRef(null);
+    useEffect(() => {
+        if (typeof cancelIdleCallback !== 'undefined' && tocIdleRef.current) {
+            cancelIdleCallback(tocIdleRef.current);
+        }
+        if (!showToc || !debouncedContent) { setTocItems([]); return; }
+        const parse = () => {
+            try {
+                const doc = getDOMParser().parseFromString(debouncedContent, 'text/html');
+                const allEls = Array.from(doc.querySelectorAll(TOC_SELECTOR));
+                let tableSeq = 0, listSeq = 0;
+                const items = [];
+                allEls.forEach((el, domIndex) => {
+                    const tag = el.tagName.toLowerCase();
+                    if (tag === 'table' && el.parentElement?.closest('table')) return;
+                    if ((tag === 'ul' || tag === 'ol') && el.parentElement?.closest('ul, ol')) return;
+                    let type, fullLabel, indent;
+                    if (tag.startsWith('h')) {
+                        type = 'heading';
+                        fullLabel = el.textContent?.trim() || '제목';
+                        indent = HEADING_INDENT[tag] ?? 0;
+                    } else if (tag === 'table') {
+                        type = 'table';
+                        tableSeq++;
+                        const cap = el.querySelector('caption')?.textContent?.trim();
+                        const th  = el.querySelector('th')?.textContent?.trim();
+                        const td  = el.querySelector('td')?.textContent?.trim();
+                        fullLabel = cap || th || td || `표 ${tableSeq}`;
+                        indent = 0;
+                    } else {
+                        type = 'list';
+                        listSeq++;
+                        const li = el.querySelector('li')?.textContent?.trim();
+                        fullLabel = li || `목록 ${listSeq}`;
+                        indent = 0;
+                    }
+                    const label = fullLabel.length > 18 ? fullLabel.slice(0, 18) + '…' : fullLabel;
+                    items.push({ domIndex, tag, type, label, fullLabel, indent });
+                });
+                setTocItems(items);
+            } catch { setTocItems([]); }
+        };
+        if (typeof requestIdleCallback !== 'undefined') {
+            tocIdleRef.current = requestIdleCallback(parse, { timeout: 500 });
+        } else {
+            parse();
+        }
+        return () => {
+            if (typeof cancelIdleCallback !== 'undefined' && tocIdleRef.current) {
+                cancelIdleCallback(tocIdleRef.current);
+            }
+        };
+    }, [debouncedContent, showToc]);
 
     // 타입 필터 적용
     const filteredTocItems = useMemo(() =>

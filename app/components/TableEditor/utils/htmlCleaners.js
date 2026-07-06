@@ -236,10 +236,12 @@ export const performCleanup = (container) => {
 
 
 
-    // Pass 1: 중첩 동일 태그 제거 (5회 → 1회 querySelectorAll)
-    Array.from(container.querySelectorAll('b, i, u, strong, em')).forEach(node => {
+    // Pass 1: 중첩 동일 태그 제거
+    const _inlines = Array.from(container.querySelectorAll('b, i, u, strong, em'));
+    _inlines.forEach(node => {
+        if (!node.parentNode) return;
         const tag = node.tagName.toLowerCase();
-        if (node.parentNode && node.parentNode.tagName && node.parentNode.tagName.toLowerCase() === tag) {
+        if (node.parentNode.tagName && node.parentNode.tagName.toLowerCase() === tag) {
             while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
             node.remove();
         }
@@ -248,8 +250,9 @@ export const performCleanup = (container) => {
     // Pass 2: 인접 동일 class/style 태그 병합
     _mergeAdjacentInlines(container);
 
-    // Pass 3: 빈 인라인 태그 제거 (5회 → 1회 querySelectorAll)
-    Array.from(container.querySelectorAll('b, i, u, strong, em')).forEach(node => {
+    // Pass 3: 빈 인라인 태그 제거 (Pass 1과 동일 컬렉션 재사용, parentNode로 DOM 잔류 여부 확인)
+    _inlines.forEach(node => {
+        if (!node.parentNode) return;
         if (node.textContent.trim() === '' && node.children.length === 0) node.remove();
     });
 

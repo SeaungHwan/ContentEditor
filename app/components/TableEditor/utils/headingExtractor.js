@@ -89,6 +89,16 @@ export function extractHeadingCandidates(html) {
             }
         }
 
+        // li가 번호·가나다 패턴으로 매칭된 경우,
+        // 같은 부모 목록 안에 동일 패턴의 형제 li가 1개 이상 있으면 목록 항목이지 제목이 아님
+        if (matched && tag === 'li' && (matched.label === '번호' || matched.label === '가나다')) {
+            const re = matched.re;
+            const siblingMatch = Array.from(el.parentElement?.children || []).some(
+                sib => sib !== el && sib.tagName === 'LI' && re.test(sib.textContent?.trim() || '')
+            );
+            if (siblingMatch) return;
+        }
+
         // 2순위: 굵은 글씨만 있는 짧은 단락 (li는 제외)
         if (!matched) {
             if (tag === 'li') return;

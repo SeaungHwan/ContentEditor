@@ -258,12 +258,11 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         // 리스트와 리스트 사이에 끼인 테이블을 올바른 li 위치로 이동하고,
         // 분리된 다음 리스트 항목들을 마커 타입 기반으로 올바른 계층에 병합
         (() => {
-            let changed = true;
+            let children = Array.from(resultWrapper.children);
             let _iterations = 0;
-            while (changed && _iterations < 20) {
-                changed = false;
+            while (_iterations < 20) {
+                let changed = false;
                 _iterations++;
-                const children = Array.from(resultWrapper.children);
                 for (let i = 0; i < children.length; i++) {
                     const listA = children[i];
                     if (listA.tagName !== 'OL' && listA.tagName !== 'UL') continue;
@@ -287,13 +286,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
 
                     lastLi.appendChild(tableEl); // 테이블을 마지막 li 내부로 이동
 
-                    // 테이블 다음에 오는 리스트 처리 (tableIdx 위치가 당겨졌으므로 재조회)
-                    const updated = Array.from(resultWrapper.children);
-                    let afterIdx = tableIdx;
+                    // tableEl이 DOM에서 빠지면서 children[tableIdx+1]이 updated[tableIdx]와 동일해짐
+                    // → updated 재조회 없이 stale children에서 afterIdx = tableIdx + 1로 접근
+                    let afterIdx = tableIdx + 1;
                     // bu_atte 등 비리스트·비테이블 요소는 lastLi로 이동해 컨텍스트를 연결
                     // 단, 법령 섹션 제목(제N조/장/편 등) 또는 heading 태그는 새 섹션 시작이므로 중단
-                    while (afterIdx < updated.length) {
-                        const el = updated[afterIdx];
+                    while (afterIdx < children.length) {
+                        const el = children[afterIdx];
                         if (!el || el.tagName === 'OL' || el.tagName === 'UL' || el.tagName === 'TABLE') break;
                         if (/^h[1-6]$/i.test(el.tagName)) break;
                         const elText = (el.textContent || '').replace(/[\s​-‍﻿\xA0]/g, '');
@@ -301,7 +300,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                         lastLi.appendChild(el);
                         afterIdx++;
                     }
-                    const afterEl = updated[afterIdx];
+                    const afterEl = children[afterIdx];
                     if (afterEl && (afterEl.tagName === 'OL' || afterEl.tagName === 'UL')) {
                         const firstLiOfB = Array.from(afterEl.children).find(c => c.tagName === 'LI');
                         const bMarker = _detectMarkerType((firstLiOfB || {}).textContent || '');
@@ -319,9 +318,11 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                         afterEl.remove();
                     }
 
+                    children = Array.from(resultWrapper.children); // 변경 후 갱신
                     changed = true;
                     break;
                 }
+                if (!changed) break;
             }
         })();
 
@@ -329,12 +330,11 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         // 패턴: listA(번호형 li) + 중간 p 등 + listB(비번호 li가 번호형 sub-li를 포함)
         // → 중간 요소와 비번호 li를 listA 마지막 li 내부로 이동, 번호형 sub-li를 listA 레벨로 승격
         (() => {
-            let changed = true;
+            let children = Array.from(resultWrapper.children);
             let _iterations = 0;
-            while (changed && _iterations < 20) {
-                changed = false;
+            while (_iterations < 20) {
+                let changed = false;
                 _iterations++;
-                const children = Array.from(resultWrapper.children);
                 for (let i = 0; i < children.length; i++) {
                     const listA = children[i];
                     if (listA.tagName !== 'OL' && listA.tagName !== 'UL') continue;
@@ -399,9 +399,11 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     });
                     toPromote.forEach(li => listA.appendChild(li));
                     listB.remove();
+                    children = Array.from(resultWrapper.children); // 변경 후 갱신
                     changed = true;
                     break;
                 }
+                if (!changed) break;
             }
         })();
 

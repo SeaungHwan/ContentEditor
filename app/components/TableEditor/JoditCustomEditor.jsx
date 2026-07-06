@@ -45,6 +45,8 @@ const BEAUTIFY_OPTIONS = {
     unformatted: ['a', 'span', 'strong', 'em', 'code'],
 };
 
+const HEADING_TAGS = new Set(['H2', 'H3', 'H4', 'H5']);
+
 const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPreview, onTableSelect, editorClasses, triggerToast, onAutoPaste, onStatsChange }, ref) => {
     const editorRef = useRef(null);
     const handlersRef = useRef({ onChange, onPreview, onTableSelect, triggerToast, onAutoPaste, onStatsChange });
@@ -352,7 +354,6 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                     }, true);
                 }
 
-                const HEADING_TAGS = new Set(['H2', 'H3', 'H4', 'H5']);
                 const applyTitClasses = (mutations) => {
                     // 추가된 노드 중 heading이 없으면 조기 리턴 (키 입력 등 불필요한 실행 방지)
                     const hasHeadingAdded = mutations.some(m =>
