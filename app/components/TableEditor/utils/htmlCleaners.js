@@ -264,6 +264,22 @@ export const performCleanup = (container) => {
         .replace(CLEANUP_REGEX.listBr, '')
         .replace(CLEANUP_REGEX.startBr, '')
         .replace(CLEANUP_REGEX.endBr, '');
+
+    // endBr은 container 전체 HTML 문자열의 맨 끝(`$`)에서만 매치되므로,
+    // <p class="bu_atte">...<br>&nbsp;</p> 처럼 태그 안쪽 끝에서 끝나고 뒤에 닫는 태그가 이어지는
+    // 경우(HWP/워드 붙여넣기 시 문단 끝에 남는 빈 줄)는 잡아내지 못한다.
+    // p/li 각각을 개별적으로 검사해 끝에 남은 <br> + 공백(&nbsp; 포함)을 제거한다.
+    container.querySelectorAll('p, li').forEach(el => {
+        const toRemove = [];
+        let sawBr = false;
+        let node = el.lastChild;
+        while (node) {
+            if (node.nodeType === 1 && node.tagName === 'BR') { sawBr = true; toRemove.push(node); node = node.previousSibling; continue; }
+            if (node.nodeType === 3 && /^\s*$/.test(node.textContent)) { toRemove.push(node); node = node.previousSibling; continue; }
+            break;
+        }
+        if (sawBr) toRemove.forEach(n => n.remove());
+    });
 };
 
 // traverseAndClean 후 인라인 태그(span/b/i/u/strong/em) 재병합

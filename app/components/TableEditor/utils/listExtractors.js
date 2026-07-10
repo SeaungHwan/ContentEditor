@@ -81,15 +81,13 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0)
     const ulBaseName = (baseUlClassName && baseUlClassName !== UL_NONE_VALUE && baseUlClassName.trim()) ? baseUlClassName.trim() : '';
     const olBaseName = 'list_ol';
 
-    const processNode = (node) => {
+    // ulCount/olCount: 현재 노드까지 오는 동안 만난 조상 UL/OL 개수(재귀 하강 중 누적).
+    // 예전에는 매 노드마다 cell까지 부모를 거슬러 올라가며 다시 세었으나(O(depth) x 호출 횟수 = O(depth^2)),
+    // 하강하면서 누적값을 그대로 물려주면 노드당 O(1)로 끝난다.
+    const processNode = (node, ulCount = 0, olCount = 0) => {
         const tagName = node.tagName.toLowerCase();
         if (tagName !== 'ul' && tagName !== 'ol') return;
-        let level = 1;
-        let parent = node.parentElement;
-        while (parent && parent !== cell) {
-            if (parent.tagName.toLowerCase() === tagName) level++;
-            parent = parent.parentElement;
-        }
+        const level = (tagName === 'ul' ? ulCount : olCount) + 1;
         const baseName = (tagName === 'ul') ? ulBaseName : olBaseName;
         const effectiveLevel = (tagName === 'ul') ? level + levelOffset : level;
         if (baseName) {
@@ -97,10 +95,12 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0)
         } else {
             node.removeAttribute('class');
         }
+        const nextUlCount = tagName === 'ul' ? level : ulCount;
+        const nextOlCount = tagName === 'ol' ? level : olCount;
         Array.from(node.children).forEach(li => {
             if (li.tagName === 'LI') {
                 Array.from(li.children).forEach(child => {
-                    if (child.tagName === 'UL' || child.tagName === 'OL') processNode(child);
+                    if (child.tagName === 'UL' || child.tagName === 'OL') processNode(child, nextUlCount, nextOlCount);
                 });
             }
         });

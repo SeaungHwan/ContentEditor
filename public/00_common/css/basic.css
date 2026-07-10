@@ -46,31 +46,13 @@ time, mark, audio, video {margin: 0; padding: 0; border: 0; vertical-align: base
 img {max-width: 100%;}
 
 .hid {position: absolute; margin: -1px; padding: 0; width: 1px; height: 1px; border: 0; clip: rect(0, 0, 0, 0); overflow: hidden;}
-.al {text-align: left !important;}
-.ac {text-align: center !important;}
-.ar {text-align: right !important;}
-.fl {float: left !important;}
-.fr {float: right !important;}
+.al {text-align: left;}
+.ac {text-align: center;}
+.ar {text-align: right;}
+
 
 .clearfix:after {clear: both; display: block; content: '';}
 
-/* slick slide common */
-.slick-slider { -webkit-transition: all ease-in-out 0.3s; transition: all ease-in-out 0.3s; -webkit-box-sizing: border-box; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-touch-callout: none; -khtml-user-select: none; -ms-touch-action: pan-y; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
-.slick-slide { display: none; height: 100%; min-height: 1px; vertical-align: middle; }
-.slick-list { height: 100%; overflow: hidden; }
-.slick-list.dragging { cursor: pointer; }
-.slick-initialized .slick-slide { display: inline-block; }
-.slick-arrow.slick-hidden { display: none; }
-.slick-current { opacity: 1; display: block; }
-.slick-track { height: 100%; position: relative; left: 0; top: 0; display: block; margin-left: auto; margin-right: auto; z-index: 0 !important;}
-.slider .control {z-index: 1 !important;}
-/* slick arrow show */
-.arwShow .slick-arrow.slick-hidden { display: inline-block; }
-
-/* MONACO */
-.monaco-editor {height: 100% !important;}
-.monaco-editor .overflow-guard {height: 100% !important;}
-.ace-idle-fingers .ace_print-margin {background:none;}
 
 body {
 	margin: 0;

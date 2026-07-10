@@ -7,7 +7,7 @@
  *   - updateStylesOnly로 현재 설정을 반영한 HTML을 dangerouslySetInnerHTML로 표시한다.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { updateStylesOnly } from '../cleanTableHtml';
 
 const PreviewModal = React.memo(({ content, config, widthString, onClose, layout, fadeStyle }) => {
@@ -19,7 +19,9 @@ const PreviewModal = React.memo(({ content, config, widthString, onClose, layout
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
 
-    const previewHtml = updateStylesOnly(content, config, widthString);
+    const previewHtml = useMemo(() =>
+        updateStylesOnly(content, config, widthString),
+    [content, config, widthString]);
 
     return (
         <div className={layout.modalPopWrap} style={fadeStyle}>

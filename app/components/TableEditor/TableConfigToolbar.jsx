@@ -41,7 +41,7 @@ const TableConfigToolbar = React.memo(({
                         <button type="button" onClick={handleCopy} className={`${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.copyBtn : undefined} title='코드 복사 (Ctrl+Shift+C)'>
                             <img src='/00_common/images/sub_com/btn_ico02.svg' alt='코드 복사'/><span>코드 복사</span>
                         </button>
-                        <button type="button" onClick={handleClear} className={`${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.removeBtn : undefined} title='전체 삭제'>
+                        <button type="button" onClick={handleClear} className={`${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.removeBtn : undefined} title='전체 삭제 (Ctrl+Shift+D)'>
                             <img src='/00_common/images/sub_com/btn_ico04.svg' alt='전체 삭제'/><span>전체 삭제</span>
                         </button>
                     </div>
@@ -86,7 +86,7 @@ const TableConfigToolbar = React.memo(({
                             </span>
                         )}
                         <span className={`${layout.statItem} ${layout.statHint}`}>
-                            단축키: Ctrl+Shift+C 복사 · Z 정리 · X 미리보기
+                            단축키: Ctrl+Shift+C 복사 · Z 정리 · X 미리보기 · D 삭제
                         </span>
                     </div>
                 )}

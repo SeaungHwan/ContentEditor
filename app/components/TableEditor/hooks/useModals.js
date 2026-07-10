@@ -91,11 +91,21 @@ export default function useModals() {
         };
     }, []);
 
-    const getFadeStyle = useCallback((name) => ({
-        opacity: visibleModals[name] ? 1 : 0,
-        transition: `opacity ${FADE_DURATION}ms`,
-        pointerEvents: visibleModals[name] ? 'auto' : 'none',
-    }), [visibleModals]);
+    // 이름별로 스타일 객체를 캐싱해, 가시성(boolean)이 실제로 바뀔 때만 새 참조를 반환한다.
+    // (참조가 매번 바뀌면 이를 prop으로 받는 모달의 React.memo가 무력화됨)
+    const fadeStyleCacheRef = useRef({});
+    const getFadeStyle = useCallback((name) => {
+        const isVisible = !!visibleModals[name];
+        const cached = fadeStyleCacheRef.current[name];
+        if (cached && cached.isVisible === isVisible) return cached.style;
+        const style = {
+            opacity: isVisible ? 1 : 0,
+            transition: `opacity ${FADE_DURATION}ms`,
+            pointerEvents: isVisible ? 'auto' : 'none',
+        };
+        fadeStyleCacheRef.current[name] = { isVisible, style };
+        return style;
+    }, [visibleModals]);
 
     const openTableEditModal = useCallback((html, tempId, existingConfig, existingColWidths) => {
         setTableEditData({ html, tempId, existingConfig, existingColWidths });

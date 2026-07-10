@@ -31,26 +31,28 @@ export function removeEmptyRowsColsFromHtml(htmlString) {
         const allRows = Array.from(table.querySelectorAll('tr'));
         if (!allRows.length || table.querySelector('[colspan],[rowspan]')) return;
 
-        const colCount = Math.max(...allRows.map(r => r.querySelectorAll('td, th').length));
+        // 행별 셀 목록을 한 번만 계산해 재사용 (반복 querySelectorAll 방지)
+        const rowCells = allRows.map(row => Array.from(row.querySelectorAll('td, th')));
+        const colCount = Math.max(...rowCells.map(cells => cells.length));
         const hasContentCol = Array.from({ length: colCount }, (_, ci) =>
-            allRows.some(row => { const c = row.querySelectorAll('td, th')[ci]; return c && !isCellEmpty(c); })
+            rowCells.some(cells => { const c = cells[ci]; return c && !isCellEmpty(c); })
         ).some(Boolean);
         if (!hasContentCol) return;
 
         // Word &nbsp; 등으로 인해 빈 열이 생긴 경우, 제거 후 2개 미만이 되면 구조 보존
         const emptyColCount = Array.from({ length: colCount }, (_, ci) =>
-            allRows.every(row => { const c = row.querySelectorAll('td, th')[ci]; return !c || isCellEmpty(c); })
+            rowCells.every(cells => { const c = cells[ci]; return !c || isCellEmpty(c); })
         ).filter(Boolean).length;
         if (colCount - emptyColCount < 2) return;
 
         for (let ci = colCount - 1; ci >= 0; ci--) {
-            const colEmpty = allRows.every(row => {
-                const cell = row.querySelectorAll('td, th')[ci];
+            const colEmpty = rowCells.every(cells => {
+                const cell = cells[ci];
                 return !cell || isCellEmpty(cell);
             });
             if (colEmpty) {
-                allRows.forEach(row => {
-                    const cell = row.querySelectorAll('td, th')[ci];
+                rowCells.forEach(cells => {
+                    const cell = cells[ci];
                     if (cell) cell.remove();
                 });
                 const col = table.querySelectorAll('colgroup col')[ci];

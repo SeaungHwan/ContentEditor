@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 const STORAGE_KEY = 'table-editor-presets';
 
@@ -102,5 +102,7 @@ export default function usePresets() {
         });
     }, []);
 
-    return { presets: [...DEFAULT_PRESETS, ...presets], savePreset, deletePreset };
+    const mergedPresets = useMemo(() => [...DEFAULT_PRESETS, ...presets], [presets]);
+
+    return { presets: mergedPresets, savePreset, deletePreset };
 }

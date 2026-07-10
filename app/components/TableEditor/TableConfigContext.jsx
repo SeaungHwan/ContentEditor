@@ -68,9 +68,13 @@ const initialConfig = {
 function configReducer(state, action) {
     switch (action.type) {
         case 'SET_FIELD':
+            if (state[action.key] === action.value) return state;
             return { ...state, [action.key]: action.value };
-        case 'UPDATE_MULTIPLE':
+        case 'UPDATE_MULTIPLE': {
+            const changed = Object.keys(action.payload).some(key => state[key] !== action.payload[key]);
+            if (!changed) return state;
             return { ...state, ...action.payload };
+        }
         case 'SET_TABLE_TYPE':
             return {
                 ...state,

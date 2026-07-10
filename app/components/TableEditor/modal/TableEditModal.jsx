@@ -1,4 +1,4 @@
-﻿/*
+/*
  * [TableEditModal.jsx] 개별 테이블 설정 모달
  *
  * 역할:
@@ -21,13 +21,17 @@
  * UI:
  *   - useModalDrag으로 드래그 이동 가능.
  *   - fadeStyle(opacity transition)으로 페이드 인/아웃.
+ *   - 클래스 드롭다운/헤더 방향/리스트 설정 UI는 GlobalTableConfigModal과 공통이라
+ *     modal/shared의 서브컴포넌트를 함께 사용한다(가이드 모드 관련 prop은 없음).
  */
 
 
 "use client";
 import React, { useState, useEffect } from 'react';
 import ColWidthControl from '../ColWidthControl';
-import { TABLE_CLASS_SUGGESTIONS, TABLE_SCROLL_SUGGESTIONS, SCROLL_CLASSES, UL_CLASS_SUGGESTIONS, OL_OPTIONS, UL_NONE_VALUE } from '../utils/constants';
+import TableClassField from './shared/TableClassField';
+import HeaderDirectionField from './shared/HeaderDirectionField';
+import ListSettingsSection from './shared/ListSettingsSection';
 import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
@@ -47,11 +51,14 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
 
     const handleApply = () => onApply(localConfig, colWidths);
 
-    const handleTableOlToggle = (e, optValue) => {
-        e.preventDefault();
-        const current = Array.isArray(localConfig.tableOlType) ? localConfig.tableOlType : [];
-        const next = current.includes(optValue) ? current.filter(v => v !== optValue) : [...current, optValue];
-        updateLocalConfig('tableOlType', next);
+    const handleTableTypeChange = (type) => {
+        updateLocalConfig('tableType', type);
+        updateLocalConfig('headerRows', 1);
+        updateLocalConfig('headerCols', 1);
+    };
+
+    const handleHeaderNumChange = (value) => {
+        updateLocalConfig(localConfig.tableType === 'default' ? 'headerRows' : 'headerCols', value);
     };
 
     return (
@@ -64,160 +71,46 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                     <div className={layout.configSection}>
                         <span className={layout.configLabel}><img src='/00_common/images/sub_com/modal_tit.svg' alt="아이콘"/>헤더</span>
                         <div className={`${layout.flexCol} ${layout.gap15}`}>
-                            <div className={`${layout.flexRow} ${layout.gap02}`}>
-                                <span className={layout.modalLabelSpan} title="이 표에만 적용할 스타일입니다.">클래스</span>
-                                <div className={layout.relative} data-dropdown="true">
-                                    {(() => {
-                                        const wVal = localConfig.wrapperClassName || '';
-                                        const activeScroll = SCROLL_CLASSES.find(sc => wVal.split(' ').includes(sc));
-                                        const matchedBase = TABLE_CLASS_SUGGESTIONS.find(opt => opt.value === wVal);
-                                        const matchedScroll = activeScroll ? TABLE_SCROLL_SUGGESTIONS.find(s => s.scrollClass === activeScroll) : null;
-                                        const displayLabel = matchedBase ? matchedBase.label : matchedScroll ? matchedScroll.label : wVal;
-                                        return (
-                                            <input className={`${layout.Inp} ${layout.selectInp} ${layout.tbl}`} type="text"
-                                                value={displayLabel}
-                                                readOnly={!!(matchedBase || matchedScroll)}
-                                                onChange={(e) => updateLocalConfig('wrapperClassName', e.target.value)}
-                                                onClick={() => setActiveDropdown('tableClass')}
-                                                onKeyDown={(e) => {if (e.key === 'Enter') {setActiveDropdown(null);e.target.blur();}}}
-                                            />
-                                        );
-                                    })()}
-                                    <i className={activeDropdown === 'tableClass' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}  onClick={() => setActiveDropdown(activeDropdown === 'tableClass' ? null : 'tableClass')}></i>
-                                    {activeDropdown === 'tableClass' && (
-                                        <ul className={layout.dropdownStyle}>
-                                            {TABLE_CLASS_SUGGESTIONS.map((cls, idx) => (
-                                                <li key={idx} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('wrapperClassName', cls.value); setActiveDropdown(null); }}>
-                                                    {cls.label}
-                                                </li>
-                                            ))}
-                                            {TABLE_SCROLL_SUGGESTIONS.map((scroll, idx) => {
-                                                const wVal = localConfig.wrapperClassName || '';
-                                                const base = wVal.split(' ').filter(c => !SCROLL_CLASSES.includes(c)).join(' ').trim();
-                                                const newVal = base ? `${base} ${scroll.scrollClass}` : scroll.scrollClass;
-                                                return (
-                                                    <li key={`scroll-${idx}`} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('wrapperClassName', newVal); setActiveDropdown(null); }}>
-                                                        {scroll.label}
-                                                    </li>
-                                                );
-                                            })}
-                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('wrapperClassName', ''); setActiveDropdown(null); }}>
-                                                직접 입력 <i className="ri-edit-line"></i>
-                                            </li>
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
-                            <div className={`${layout.flexRow} ${layout.gap02}`}>
-                                <span className={layout.modalLabelSpan}>방향</span>
-                                <div className={`${layout.flexCol} ${layout.gap06}`}>
-                                    <label className={layout.radioItem}>
-                                        <input type="radio" checked={localConfig.tableType === 'default'}
-                                            onChange={() => { updateLocalConfig('tableType', 'default'); updateLocalConfig('headerRows', 1); updateLocalConfig('headerCols', 1); }} />
-                                        <span className={layout.modalLabelSpan}>Col</span>
-                                    </label>
-                                    <label className={layout.radioItem}>
-                                        <input type="radio" checked={localConfig.tableType === 'row'}
-                                            onChange={() => { updateLocalConfig('tableType', 'row'); updateLocalConfig('headerRows', 1); updateLocalConfig('headerCols', 1); }} />
-                                        <span className={layout.modalLabelSpan}>Row</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div className={`${layout.flexRow} ${layout.gap02}`}>
-                                <span className={layout.modalLabelSpan}>기준 행(시작)</span>
-                                <div className={`${layout.relative} ${layout.gap02}`}>
-                                <input type="number" min="0" max="10" className={`${layout.Inp} ${layout.numInp}`}
-                                    value={localConfig.tableType === 'default' ? localConfig.headerRows : localConfig.headerCols}
-                                    onChange={(e) => updateLocalConfig(localConfig.tableType === 'default' ? 'headerRows' : 'headerCols', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                />
-                                </div>
-                            </div>
+                            <TableClassField
+                                layout={layout}
+                                value={localConfig.wrapperClassName}
+                                onChange={(v) => updateLocalConfig('wrapperClassName', v)}
+                                activeDropdown={activeDropdown}
+                                setActiveDropdown={setActiveDropdown}
+                                hintTitle="이 표에만 적용할 스타일입니다."
+                            />
+                            <HeaderDirectionField
+                                layout={layout}
+                                tableType={localConfig.tableType}
+                                headerRows={localConfig.headerRows}
+                                headerCols={localConfig.headerCols}
+                                onTableTypeChange={handleTableTypeChange}
+                                onHeaderNumChange={handleHeaderNumChange}
+                            />
                         </div>
                     </div>
 
-                    <div className={layout.configSection}>
-                        <span className={layout.configLabel}><img src='/00_common/images/sub_com/modal_tit.svg' alt="아이콘"/> 리스트</span>
-                        <div className={layout.flexCol}>
-                            <div className={`${layout.flexCol} ${layout.gap06}`}>
-                                <span className={layout.modalLabelSpan} title="이 표 내부 목록 항목(ul)에 적용할 스타일입니다.">ul</span>
-                                <div className={layout.relative} data-dropdown="true">
-                                    {(() => {
-                                        const ulVal = localConfig.tableUlClassName;
-                                        const matchedUl = UL_CLASS_SUGGESTIONS.find(opt => opt.value === ulVal);
-                                        return (
-                                            <input className={`${layout.Inp} ${layout.selectInp}`} type="text"
-                                                value={ulVal === UL_NONE_VALUE ? '' : (matchedUl ? matchedUl.label : (ulVal || ''))}
-                                                placeholder={ulVal === UL_NONE_VALUE ? '선택 안함' : '스타일 선택'}
-                                                readOnly={!!matchedUl || ulVal === UL_NONE_VALUE}
-                                                onChange={(e) => updateLocalConfig('tableUlClassName', e.target.value)}
-                                                onClick={() => setActiveDropdown('tableUl')}
-                                                onKeyDown={(e) => {if (e.key === 'Enter') {setActiveDropdown(null);e.target.blur();}}}
-                                            />
-                                        );
-                                    })()}
-                                    <i className={activeDropdown === 'tableUl' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}  onClick={() => setActiveDropdown(activeDropdown === 'tableUl' ? null : 'tableUl')}></i>
-                                    {activeDropdown === 'tableUl' && (
-                                        <ul className={layout.dropdownStyle}>
-                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('tableUlClassName', UL_NONE_VALUE); setActiveDropdown(null); }}>
-                                                선택 안함 <i className="ri-close-circle-line pc_red"></i>
-                                            </li>
-                                            {UL_CLASS_SUGGESTIONS.map((cls, idx) => (
-                                                <li key={idx} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('tableUlClassName', cls.value); setActiveDropdown(null); }}>
-                                                    {cls.label}
-                                                </li>
-                                            ))}
-                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('tableUlClassName', ''); setActiveDropdown(null); }}>
-                                                직접 입력 <i className="ri-edit-line"></i>
-                                            </li>
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
-                            <div className={`${layout.flexCol} ${layout.gap06}`}>
-                                <span className={layout.modalLabelSpan}>ol</span>
-                                <div className={layout.relative} data-dropdown="true">
-                                    <input className={`${layout.Inp} ${layout.selectInp}`} type="text" readOnly
-                                        value={Array.isArray(localConfig.tableOlType) && localConfig.tableOlType.length > 0 ? localConfig.tableOlType.map(val => OL_OPTIONS.find(opt => opt.value === val)?.label).filter(Boolean).join(', ') : ''}
-                                        placeholder="선택 안함"
-                                        onClick={() => setActiveDropdown('tableOlType')}
-                                    />
-                                    <i className={activeDropdown === 'tableOlType' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}  onClick={() => setActiveDropdown(activeDropdown === 'tableOlType' ? null : 'tableOlType')}></i>
-                                    {activeDropdown === 'tableOlType' && (
-                                        <ul className={layout.dropdownStyle}>
-                                            <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateLocalConfig('tableOlType', []); setActiveDropdown(null); }}>
-                                                선택 안함 <i className="ri-close-circle-line pc_red"></i>
-                                            </li>
-                                            {OL_OPTIONS.map((opt, index) => (
-                                                <li key={index} className={layout.listItemStyle} onMouseDown={(e) => handleTableOlToggle(e, opt.value)}>
-                                                    {opt.label} {Array.isArray(localConfig.tableOlType) && localConfig.tableOlType.includes(opt.value) && <i className={`ri-check-line ${layout.checkIcon}`}></i>}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
-                            <div className={`${layout.flexCol} ${layout.gap06} ${layout.mglN05}`}>
-                            <label className={layout.checkItem}>
-                                <input type="checkbox" checked={localConfig.tableUseAtteMarker !== false} onChange={(e) => updateLocalConfig('tableUseAtteMarker', e.target.checked)} />
-                                <span>※ 변환</span>
-                            </label>
-                            <label className={layout.checkItem}>
-                                <input type="checkbox" checked={localConfig.tableKeepMarker || false} onChange={(e) => updateLocalConfig('tableKeepMarker', e.target.checked)} />
-                                <span>기호 유지</span>
-                            </label>
-                            <label className={layout.checkItem}>
-                                <input type="checkbox" checked={localConfig.tableListStartFrom2 || false} onChange={(e) => updateLocalConfig('tableListStartFrom2', e.target.checked)} />
-                                <span>시작(리스트2)</span>
-                            </label>
-                            {localConfig.tableIsColorMode && (
-                                <label className={layout.checkItem}>
-                                    <input type="checkbox" checked={localConfig.tableIsColorClassMode || false} onChange={(e) => updateLocalConfig('tableIsColorClassMode', e.target.checked)} />
-                                    <span>색상 클래스</span>
-                                </label>
-                            )}
-                            </div>
-                        </div>
-                    </div>
+                    <ListSettingsSection
+                        layout={layout}
+                        ulHintTitle="이 표 내부 목록 항목(ul)에 적용할 스타일입니다."
+                        ulValue={localConfig.tableUlClassName}
+                        onUlChange={(v) => updateLocalConfig('tableUlClassName', v)}
+                        ulDropdownKey="tableUl"
+                        olDropdownKey="tableOlType"
+                        olValue={localConfig.tableOlType}
+                        onOlChange={(v) => updateLocalConfig('tableOlType', v)}
+                        atteChecked={localConfig.tableUseAtteMarker}
+                        onAtteChange={(v) => updateLocalConfig('tableUseAtteMarker', v)}
+                        keepChecked={localConfig.tableKeepMarker}
+                        onKeepChange={(v) => updateLocalConfig('tableKeepMarker', v)}
+                        startFrom2Checked={localConfig.tableListStartFrom2}
+                        onStartFrom2Change={(v) => updateLocalConfig('tableListStartFrom2', v)}
+                        showColorToggle={localConfig.tableIsColorMode}
+                        colorChecked={localConfig.tableIsColorClassMode}
+                        onColorChange={(v) => updateLocalConfig('tableIsColorClassMode', v)}
+                        activeDropdown={activeDropdown}
+                        setActiveDropdown={setActiveDropdown}
+                    />
 
                     <div className={layout.configSection}>
                         <span className={layout.configLabel}><img src='/00_common/images/sub_com/modal_tit.svg' alt="아이콘"/> 옵션</span>
