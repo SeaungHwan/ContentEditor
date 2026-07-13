@@ -187,10 +187,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
     };
 
         Array.from(doc.body.childNodes).forEach(node => {
-            if (node.nodeType === 1 && (node.tagName === 'TABLE' || node.querySelector('table'))) {
+            const isTableNode = node.nodeType === 1 && node.tagName === 'TABLE';
+            // node.querySelector('table')를 아래에서 또 호출하지 않도록 한 번만 계산해 재사용한다.
+            const nestedTable = (node.nodeType === 1 && !isTableNode) ? node.querySelector('table') : null;
+            if (node.nodeType === 1 && (isTableNode || nestedTable)) {
                 flushTextGroup();
 
-                const tableEl = node.tagName === 'TABLE' ? node : node.querySelector('table');
+                const tableEl = isTableNode ? node : nestedTable;
 
                 // 테이블이 node의 직접/1단계 자식인 단순 래퍼인지 확인
                 // (예: <div class="tbl_st"><table> 또는 <table>)
@@ -217,13 +220,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                 tablesToProcess.forEach(t => {
                     const lCfg = lCfgFromNode || t.getAttribute('data-local-config');
                     const lCw = lCwFromNode || t.getAttribute('data-local-colwidths');
-                    const tdCount = t.querySelectorAll('td, th').length;
+                    const tdCells = t.querySelectorAll('td, th');
 
-                    if (tdCount <= 1) {
+                    if (tdCells.length <= 1) {
                         flushTableGroup();
                         const boxDiv = document.createElement('div');
                         boxDiv.className = 'box_st2';
-                        const cell = t.querySelector('td, th');
+                        const cell = tdCells[0];
                         if (cell) { while (cell.firstChild) boxDiv.appendChild(cell.firstChild); }
                         else { boxDiv.innerHTML = t.innerHTML; }
                         processText(boxDiv, config);

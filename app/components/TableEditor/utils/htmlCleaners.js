@@ -256,30 +256,50 @@ export const performCleanup = (container) => {
         if (node.textContent.trim() === '' && node.children.length === 0) node.remove();
     });
 
-    container.innerHTML = container.innerHTML
-        .replace(CLEANUP_REGEX.multipleBrs, '<br>')
-        .replace(CLEANUP_REGEX.brokenQuotes1, '"')
-        .replace(CLEANUP_REGEX.brokenQuotes2, '"')
-        .replace(CLEANUP_REGEX.brToDiv, '<div')
-        .replace(CLEANUP_REGEX.listBr, '')
-        .replace(CLEANUP_REGEX.startBr, '')
-        .replace(CLEANUP_REGEX.endBr, '');
+    let html = container.innerHTML;
+    // multipleBrs/brToDiv/listBr/startBr/endBr은 <br>을 새로 만들지 않고 제거/정규화만 하므로,
+    // 이 시점에 <br>이 없었다면 이후에도 없다 — p/li 끝 정리(아래)까지 함께 건너뛸 수 있는 근거가 된다.
+    const hadBr = html.includes('<br');
+
+    // multipleBrs/brToDiv/listBr/startBr/endBr은 전부 '<br'가 있어야만 매치되므로,
+    // <br>가 아예 없는 셀/텍스트(가장 흔한 케이스)에서는 5개 정규식 스캔을 통째로 건너뛴다.
+    if (hadBr) {
+        html = html
+            .replace(CLEANUP_REGEX.multipleBrs, '<br>')
+            .replace(CLEANUP_REGEX.brToDiv, '<div')
+            .replace(CLEANUP_REGEX.listBr, '')
+            .replace(CLEANUP_REGEX.startBr, '')
+            .replace(CLEANUP_REGEX.endBr, '');
+    }
+
+    // brokenQuotes1/2는 HWP 붙여넣기 시 드물게 섞여 들어오는 특정 2글자(비공개 영역 문자, U+F0850/U+F0851)만
+    // 대상으로 하므로, 문자열에 아예 없으면 두 정규식 스캔을 건너뛴다.
+    if (html.includes('\u{F0850}') || html.includes('\u{F0851}')) {
+        html = html
+            .replace(CLEANUP_REGEX.brokenQuotes1, '"')
+            .replace(CLEANUP_REGEX.brokenQuotes2, '"');
+    }
+
+    container.innerHTML = html;
 
     // endBr은 container 전체 HTML 문자열의 맨 끝(`$`)에서만 매치되므로,
     // <p class="bu_atte">...<br>&nbsp;</p> 처럼 태그 안쪽 끝에서 끝나고 뒤에 닫는 태그가 이어지는
     // 경우(HWP/워드 붙여넣기 시 문단 끝에 남는 빈 줄)는 잡아내지 못한다.
     // p/li 각각을 개별적으로 검사해 끝에 남은 <br> + 공백(&nbsp; 포함)을 제거한다.
-    container.querySelectorAll('p, li').forEach(el => {
-        const toRemove = [];
-        let sawBr = false;
-        let node = el.lastChild;
-        while (node) {
-            if (node.nodeType === 1 && node.tagName === 'BR') { sawBr = true; toRemove.push(node); node = node.previousSibling; continue; }
-            if (node.nodeType === 3 && /^\s*$/.test(node.textContent)) { toRemove.push(node); node = node.previousSibling; continue; }
-            break;
-        }
-        if (sawBr) toRemove.forEach(n => n.remove());
-    });
+    // (hadBr이 false였다면 위 replace들이 <br>을 새로 만들지 않으므로 이 순회도 스킵 가능)
+    if (hadBr) {
+        container.querySelectorAll('p, li').forEach(el => {
+            const toRemove = [];
+            let sawBr = false;
+            let node = el.lastChild;
+            while (node) {
+                if (node.nodeType === 1 && node.tagName === 'BR') { sawBr = true; toRemove.push(node); node = node.previousSibling; continue; }
+                if (node.nodeType === 3 && /^\s*$/.test(node.textContent)) { toRemove.push(node); node = node.previousSibling; continue; }
+                break;
+            }
+            if (sawBr) toRemove.forEach(n => n.remove());
+        });
+    }
 };
 
 // traverseAndClean 후 인라인 태그(span/b/i/u/strong/em) 재병합

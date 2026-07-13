@@ -16,8 +16,7 @@
 import { useCallback } from 'react';
 import { html as html_beautify } from 'js-beautify';
 import { cleanTableHtml, updateStylesOnly } from '../cleanTableHtml';
-import { RE_WHITESPACE } from '../utils/constants';
-import { removeEmptyRowsColsFromHtml } from '../utils/tableEditUtils';
+import { RE_WHITESPACE, TEMP_ATTRS, TEMP_ATTRS_SELECTOR } from '../utils/constants';
 import { getDOMParser } from '../utils/htmlCleaners';
 
 // &nbsp;( ), 제로폭 공백 등 불가시 문자까지 포함해 "실제 텍스트 없음" 판정
@@ -65,9 +64,8 @@ export default function useEditorActions({
 
         try {
             const cleanedHtml = cleanTableHtml(currentVal, config, formattedWidthString);
-            const { html: noEmptyHtml } = removeEmptyRowsColsFromHtml(cleanedHtml);
-            if (editorRef.current) editorRef.current.setFullContent(noEmptyHtml);
-            setContent(noEmptyHtml);
+            if (editorRef.current) editorRef.current.setFullContent(cleanedHtml);
+            setContent(cleanedHtml);
             triggerToast('문서 정리가 완료되었습니다.');
         } catch (error) {
             console.error("Clean Document Error", error);
@@ -85,8 +83,10 @@ export default function useEditorActions({
 
         const tempDoc = getDOMParser().parseFromString(finalHtml, 'text/html');
         tempDoc.querySelectorAll('[data-jodit-temp]').forEach(el => el.remove());
-        ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id']
-            .forEach(attr => tempDoc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr)));
+        // 6개 속성 각각 querySelectorAll을 돌리는 대신, 결합 셀렉터로 한 번만 순회한다.
+        tempDoc.querySelectorAll(TEMP_ATTRS_SELECTOR).forEach(el => {
+            TEMP_ATTRS.forEach(attr => el.removeAttribute(attr));
+        });
         tempDoc.querySelectorAll('td, th').forEach(cell => {
             const text = cell.textContent.replace(RE_WHITESPACE, '');
             if (text === '' && cell.querySelectorAll('img, iframe, table').length === 0) {

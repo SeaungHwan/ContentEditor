@@ -34,7 +34,8 @@ const getSeqNum = (el) => {
  * @returns {string}
  */
 export function stripCandidateMarkers(html) {
-    return html ? html.replace(/ data-hcand-id="[^"]*"/g, '') : html;
+    if (!html || !html.includes('data-hcand-id')) return html;
+    return html.replace(/ data-hcand-id="[^"]*"/g, '');
 }
 
 /**
@@ -56,9 +57,7 @@ export function extractHeadingCandidates(html) {
     // 표·목록 밖의 블록 요소 (p, div)
     const textBlocks = Array.from(doc.body.querySelectorAll('p, div'))
         .filter(el =>
-            !el.closest('table') &&
-            !el.closest('ul') &&
-            !el.closest('ol') &&
+            !el.closest('table, ul, ol') &&
             !el.querySelector('table, ul, ol')
         );
 

@@ -369,13 +369,13 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
 
                     const titClassMap = getTitClassMap();
                     let applied = false;
-                    ['h3', 'h4', 'h5'].forEach(tag => {
-                        instance.editor.querySelectorAll(tag).forEach(el => {
-                            if (el.className !== titClassMap[tag]) {
-                                el.className = titClassMap[tag];
-                                applied = true;
-                            }
-                        });
+                    // 태그별로 3번 querySelectorAll을 돌리는 대신 결합 셀렉터로 에디터 전체를 한 번만 순회한다.
+                    instance.editor.querySelectorAll('h3,h4,h5').forEach(el => {
+                        const tag = el.tagName.toLowerCase();
+                        if (el.className !== titClassMap[tag]) {
+                            el.className = titClassMap[tag];
+                            applied = true;
+                        }
                     });
 
                     titObserverRef.current.observe(instance.editor, { childList: true, subtree: true });

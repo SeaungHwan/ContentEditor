@@ -132,6 +132,8 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                         showColorToggle={localConfig.tableIsColorMode}
                         colorChecked={localConfig.tableIsColorClassMode}
                         onColorChange={(v) => updateConfig('tableIsColorClassMode', v)}
+                        colorGuide={isGuideMode ? GUIDE_MESSAGES.color : undefined}
+                        colorHintTitle="표 내부 색상을 클래스(pc_색상)로 저장할지, style 속성으로 저장할지 결정합니다."
                         activeDropdown={activeDropdown}
                         setActiveDropdown={setActiveDropdown}
                     />

@@ -30,6 +30,14 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
     const [localConfig, setLocalConfig] = useState(globalConfig ? { ...globalConfig } : {});
     const [activeDropdown, setActiveDropdown] = useClickOutsideDropdown();
     const { dragStyle, handleDragStart } = useModalDrag();
+    // 드롭다운에서 직접 선택했을 때만 잠금(읽기 전용 라벨) 처리 - 타이핑 중 값이 우연히 프리셋과 같아져도 잠기지 않도록 별도 추적
+    const [lockedTitClass, setLockedTitClass] = useState(() => (
+        ['tit1', 'tit2', 'tit3'].reduce((acc, titKey) => {
+            const val = globalConfig?.[`${titKey}Class`] || '';
+            acc[titKey] = TIT_CLASS_SUGGESTIONS.some(opt => opt.value === val);
+            return acc;
+        }, {})
+    ));
 
     useEffect(() => {
         const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
@@ -90,6 +98,12 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                                 const currentClassValue = localConfig[currentClassKey] || '';
                                 const matchedClassOpt = TIT_CLASS_SUGGESTIONS.find(opt => opt.value === currentClassValue);
                                 const titClassDdKey = `${currentClassKey}Dd`;
+                                const isClassLocked = !!lockedTitClass[titKey];
+                                const selectTitClassPreset = (optValue) => {
+                                    setLockedTitClass(prev => ({ ...prev, [titKey]: true }));
+                                    updateConfig(currentClassKey, optValue);
+                                    setActiveDropdown(null);
+                                };
 
                                 return (
                                     <div key={titKey} className={`${layout.flexRow} ${layout.gap02}`}>
@@ -97,9 +111,9 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                                         <div className={`${layout.flexCol} ${layout.gap035} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES[titKey] : undefined} data-dropdown="true">
                                             <div className={layout.relative} title="제목 태그에 적용할 스타일을 선택하세요.">
                                                 <input className={`${layout.Inp} ${layout.selectInp}`} type="text"
-                                                    value={matchedClassOpt ? matchedClassOpt.label : currentClassValue}
-                                                    readOnly={!!matchedClassOpt}
-                                                    onChange={(e) => updateConfig(currentClassKey, e.target.value)}
+                                                    value={isClassLocked && matchedClassOpt ? matchedClassOpt.label : currentClassValue}
+                                                    readOnly={isClassLocked}
+                                                    onChange={(e) => { setLockedTitClass(prev => ({ ...prev, [titKey]: false })); updateConfig(currentClassKey, e.target.value); }}
                                                     onClick={() => setActiveDropdown(titClassDdKey)}
                                                     placeholder="스타일 선택"
                                                 />
@@ -107,11 +121,11 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                                                 {activeDropdown === titClassDdKey && (
                                                     <ul className={`${layout.dropdownStyle}`}>
                                                         {TIT_CLASS_SUGGESTIONS.map((opt, i) => (
-                                                            <li key={i} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateConfig(currentClassKey, opt.value); setActiveDropdown(null); }}>
+                                                            <li key={i} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); selectTitClassPreset(opt.value); }}>
                                                                 {opt.label}
                                                             </li>
                                                         ))}
-                                                        <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); updateConfig(currentClassKey, ''); setActiveDropdown(null); }}>
+                                                        <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); setLockedTitClass(prev => ({ ...prev, [titKey]: false })); updateConfig(currentClassKey, ''); setActiveDropdown(null); }}>
                                                             직접 입력 <i className="ri-edit-line"></i>
                                                         </li>
                                                     </ul>
@@ -168,6 +182,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                         colorChecked={localConfig.isColorClassMode}
                         onColorChange={(v) => updateConfig('isColorClassMode', v)}
                         colorGuide={isGuideMode ? GUIDE_MESSAGES.color : undefined}
+                        colorHintTitle="텍스트 색상을 클래스(pc_색상)로 저장할지, style 속성으로 저장할지 결정합니다."
                         activeDropdown={activeDropdown}
                         setActiveDropdown={setActiveDropdown}
                     />

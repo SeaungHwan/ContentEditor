@@ -134,10 +134,9 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         return text.replace(HWP_CHAR_REGEX, (match) => HWP_CHAR_MAP[match] || match);
     };
 
+    // isOuterText && checkTitleMatch(...) 재검사는 제거됨: 이 함수가 호출되는 시점(getMarkerInfo(rawText))에는
+    // 이미 상위에서 동일한 title-match 조건을 검사해 매칭 시 continue로 빠져나간 뒤이므로, 여기 도달했다면 항상 false다.
     const getMarkerInfo = (text) => {
-        if (isOuterText && (checkTitleMatch(text, tit1) || checkTitleMatch(text, tit2) || checkTitleMatch(text, tit3))) {
-            return null;
-        }
         const safeText = sanitizeSpecialChars(text);
         if (EXCLUDE_MARKER_REGEXES.some(regex => regex.test(safeText))) return null;
 
@@ -145,7 +144,8 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
             const match = safeText.match(MARKER_TYPES[type]);
             if (match) {
                 if (!safeText.substring(match[0].length).trim()) continue;
-                return { type, regex: MARKER_TYPES[type], char: match[0].trim(), rawMarker: match[0].replace(/[.\s()]/g, '') };
+                // safeText도 함께 반환해, 아래에서 markerInfo가 있을 때 sanitizeSpecialChars(rawText)를 또 호출하지 않고 재사용한다.
+                return { type, regex: MARKER_TYPES[type], char: match[0].trim(), rawMarker: match[0].replace(/[.\s()]/g, ''), safeText };
             }
         }
         return null;
@@ -213,7 +213,8 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         });
     };
 
-    normalizeBrBlocks(cell);
+    // 두 서브패스 모두 <br> 자식이 있어야만 동작하므로, <br>가 아예 없는 셀에서는 전체 서브트리 순회를 건너뛴다.
+    if (cell.querySelector('br')) normalizeBrBlocks(cell);
 
     const childNodes = Array.from(cell.childNodes);
     const rootNodes = [];
@@ -450,7 +451,7 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
                 continue;
             }
 
-            const safeNodeText = sanitizeSpecialChars(rawText);
+            const safeNodeText = markerInfo.safeText;
             const match = safeNodeText.match(markerRegex);
 
             if (match) {

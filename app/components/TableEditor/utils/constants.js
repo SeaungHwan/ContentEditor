@@ -43,6 +43,11 @@ export const RE_NUMERIC = /^[\d.]+$/;
 // 공백·제로폭 문자 제거 — .replace()와 함께 사용 (.test()에 사용 금지)
 export const RE_WHITESPACE = /[\s\u00A0\u200B-\u200D\uFEFF]/g;
 
+// data attrs to strip before content leaves the editor (onChange/copy)
+// TEMP_ATTRS_SELECTOR: combined selector so querySelectorAll runs once instead of once per attribute
+export const TEMP_ATTRS = ['data-local-config', 'data-local-colwidths', 'data-temp-id', 'data-origin-html', 'data-hcand-id', 'data-hconv-id'];
+export const TEMP_ATTRS_SELECTOR = TEMP_ATTRS.map(a => `[${a}]`).join(',');
+
 // ① ② ③ … ⑳ (U+2460–U+2473) 및 ㉑ … ㉟ (U+3251–U+325F) → 아라비아 숫자
 // 다양한 종류의 원문자 1~50 → 아라비아 숫자로 변환
 export const convertCircleToArabic = (str) => {
@@ -152,14 +157,14 @@ export const HWP_CHAR_REGEX = new RegExp(Object.keys(HWP_CHAR_MAP).join('|'), 'g
 export const UL_NONE_VALUE = '__no_ul__';
 export const SCROLL_CLASSES = ['scroll_gr', 'scroll_wide'];
 export const TABLE_CLASS_SUGGESTIONS = [
-    { label: '기본형', value: 'tbl_st' },
+    { label: 'tbl_st', value: 'tbl_st' },
 ];
 export const TABLE_SCROLL_SUGGESTIONS = [
-    { label: '모바일 스크롤', scrollClass: 'scroll_gr' },
-    { label: '와이드 스크롤', scrollClass: 'scroll_wide' },
+    { label: 'tbl_st scroll_gr', scrollClass: 'scroll_gr' },
+    { label: 'tbl_st scroll_wide', scrollClass: 'scroll_wide' },
 ];
 export const UL_CLASS_SUGGESTIONS = [
-    { label: '기본 리스트', value: 'list_st' },
+    { label: 'list_st', value: 'list_st' },
 ];
 export const TIT_CLASS_SUGGESTIONS = [
     { label: 'tit1', value: 'tit1' },

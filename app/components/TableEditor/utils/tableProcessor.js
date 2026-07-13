@@ -162,11 +162,21 @@ const applyTableFormats = (container, config, colWidths) => {
 
         applyTableSemantics(table, curWClass, curType, isNested, curWrapDiv, curHeaderRows, curHeaderCols, curColWidths);
 
+        // al(왼쪽 정렬) 판정용 셀렉터 — ul/ol/bu_atte 중 하나라도 있으면 al 클래스 적용.
+        // 셋을 하나의 결합 셀렉터로 합쳐 querySelector 호출 1회로 판정한다.
+        const alSelector = [
+            (ulClass && ulClass.trim()) ? `ul[class*="${ulClass.trim()}"]` : null,
+            'ol[class*="order-st"]',
+            '.bu_atte',
+        ].filter(Boolean).join(',');
+
         Array.from(table.rows).forEach(row => {
+            // 같은 행의 모든 셀은 조상 체인이 동일하므로 thead 소속 여부는 행 단위로 한 번만 계산한다.
+            const inThead = !!row.closest('thead');
             Array.from(row.cells).forEach(cell => {
                 if (cell.tagName === 'TH') {
                     flattenHeaderCell(cell);
-                } else if (!cell.closest('thead') && cell.tagName === 'TD') {
+                } else if (!inThead && cell.tagName === 'TD') {
                     const noUl = ulClass === UL_NONE_VALUE;
                     const noAtte = curUseAtteMarker === false;
                     processCellContent(cell, keepMarker, false, null, null, null, olType, noUl, noAtte);
@@ -178,11 +188,7 @@ const applyTableFormats = (container, config, colWidths) => {
                 traverseAndClean(cell, isColorMode, isColorClassMode);
                 if (isColorMode) mergeAdjacentColorSpans(cell);
 
-                const hasUl = (ulClass && ulClass.trim()) ? cell.querySelector(`ul[class*="${ulClass.trim()}"]`) : false;
-                const hasOl = cell.querySelector('ol[class*="order-st"]');
-                const hasAtte = cell.querySelector('.bu_atte');
-
-                if (hasUl || hasOl || hasAtte) {
+                if (cell.querySelector(alSelector)) {
                     cell.classList.remove('ac', 'ar');
                     cell.classList.add('al');
                 }

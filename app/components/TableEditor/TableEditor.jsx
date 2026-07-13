@@ -7,7 +7,7 @@ import layout from "../../layout.module.css";
 import { cleanTableHtml, updateStylesOnly } from './cleanTableHtml';
 import TableConfigToolbar from './TableConfigToolbar';
 import TocPanel from './TocPanel';
-import { GUIDE_MESSAGES, RE_NUMERIC } from './utils/constants';
+import { GUIDE_MESSAGES, RE_NUMERIC, TEMP_ATTRS, TEMP_ATTRS_SELECTOR } from './utils/constants';
 
 const AUTO_PASTE_KEY = 'table-editor-auto-paste';
 
@@ -362,8 +362,19 @@ function TableEditor({ initialHtml = '', onChange }) {
             setActiveItemIndex(activeIdx);
         };
 
-        editorEl.addEventListener('scroll', handleScroll, { passive: true });
-        return () => editorEl.removeEventListener('scroll', handleScroll);
+        // 네이티브 scroll 이벤트는 초당 수십 회 발생할 수 있어, updateBtnPos와 동일하게
+        // requestAnimationFrame으로 스로틀링해 프레임당 1회만 querySelectorAll/getBoundingClientRect를 실행한다.
+        let rafId = null;
+        const throttled = () => {
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => { rafId = null; handleScroll(); });
+        };
+
+        editorEl.addEventListener('scroll', throttled, { passive: true });
+        return () => {
+            editorEl.removeEventListener('scroll', throttled);
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }, [showToc, tocItems.length]);
 
     // 에디터 DOM 변경 후 instance·state 동기화 공통 헬퍼
@@ -689,8 +700,10 @@ function TableEditor({ initialHtml = '', onChange }) {
         if (!onChangeRef.current || !debouncedContent) return;
         const val = editorComponentRef.current?.getInstance()?.value || debouncedContent;
         const doc = getDOMParser().parseFromString(val, 'text/html');
-        ['data-local-config','data-local-colwidths','data-temp-id','data-origin-html','data-hcand-id','data-hconv-id'].forEach(attr => {
-            doc.querySelectorAll(`[${attr}]`).forEach(el => el.removeAttribute(attr));
+        // 6개 속성 각각 querySelectorAll을 돌리는 대신, 결합 셀렉터로 한 번만 순회한다.
+        // removeAttribute는 없는 속성에 대해 no-op이므로 매칭된 엘리먼트에 6개를 전부 제거해도 결과는 동일하다.
+        doc.querySelectorAll(TEMP_ATTRS_SELECTOR).forEach(el => {
+            TEMP_ATTRS.forEach(attr => el.removeAttribute(attr));
         });
         doc.querySelectorAll('td, th').forEach(cell => {
             if (cell.textContent.replace(/[\s ​-‍﻿]/g, '') === '' &&
@@ -699,7 +712,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             }
         });
         let html = doc.body.innerHTML;
-        html = html.replace(/<\/table>\s*<br\s*\/?>/gi, '</table>');
+        if (html.includes('<br')) html = html.replace(/<\/table>\s*<br\s*\/?>/gi, '</table>');
         onChangeRef.current(html);
     }, [debouncedContent]);
 
@@ -822,8 +835,10 @@ function TableEditor({ initialHtml = '', onChange }) {
             const formattedWidth = localColWidths.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(',');
             const tempParserDiv = document.createElement('div');
             tempParserDiv.innerHTML = tableEditModal.html;
-            tempParserDiv.querySelectorAll('[data-local-config]').forEach(el => el.removeAttribute('data-local-config'));
-            tempParserDiv.querySelectorAll('[data-local-colwidths]').forEach(el => el.removeAttribute('data-local-colwidths'));
+            tempParserDiv.querySelectorAll('[data-local-config],[data-local-colwidths]').forEach(el => {
+                el.removeAttribute('data-local-config');
+                el.removeAttribute('data-local-colwidths');
+            });
             const cleanedHtml = cleanTableHtml(
                 tempParserDiv.innerHTML,
                 localConfig,

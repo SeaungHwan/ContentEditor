@@ -17,11 +17,14 @@ export default function ListSettingsSection({
     atteChecked, onAtteChange, atteGuide, atteDataDropdown,
     keepChecked, onKeepChange, noListGuide, keepDataDropdown,
     startFrom2Checked, onStartFrom2Change, list2Guide, list2DataDropdown,
-    showColorToggle, colorChecked, onColorChange, colorGuide, colorDataDropdown,
+    showColorToggle, colorChecked, onColorChange, colorGuide, colorDataDropdown, colorHintTitle,
     activeDropdown, setActiveDropdown,
 }) {
     const matchedUl = UL_CLASS_SUGGESTIONS.find(opt => opt.value === ulValue);
     const olArray = Array.isArray(olValue) ? olValue : [];
+    // 드롭다운에서 직접 선택했을 때만 잠금(읽기 전용 라벨) 처리 - 타이핑 중 값이 우연히 프리셋과 같아져도 잠기지 않도록 별도 추적
+    const [isUlLocked, setIsUlLocked] = React.useState(!!matchedUl);
+    const selectUlPreset = (newVal) => { setIsUlLocked(true); onUlChange(newVal); setActiveDropdown(null); };
 
     const toggleOl = (e, optValue) => {
         e.preventDefault();
@@ -37,25 +40,25 @@ export default function ListSettingsSection({
                     <span className={layout.modalLabelSpan} title={ulHintTitle}>ul</span>
                     <div className={`${layout.relative} ${ulGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={ulGuide || undefined} data-dropdown="true">
                         <input className={`${layout.Inp} ${layout.selectInp}`} type="text"
-                            value={ulValue === UL_NONE_VALUE ? '' : (matchedUl ? matchedUl.label : (ulValue || ''))}
+                            value={ulValue === UL_NONE_VALUE ? '' : (isUlLocked && matchedUl ? matchedUl.label : (ulValue || ''))}
                             placeholder={ulValue === UL_NONE_VALUE ? '선택 안함' : '스타일 선택'}
-                            readOnly={!!matchedUl || ulValue === UL_NONE_VALUE}
-                            onChange={(e) => onUlChange(e.target.value)}
+                            readOnly={isUlLocked || ulValue === UL_NONE_VALUE}
+                            onChange={(e) => { setIsUlLocked(false); onUlChange(e.target.value); }}
                             onClick={() => setActiveDropdown(ulDropdownKey)}
                             onKeyDown={(e) => { if (e.key === 'Enter') { setActiveDropdown(null); e.target.blur(); } }}
                         />
                         <i className={activeDropdown === ulDropdownKey ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} onClick={() => setActiveDropdown(activeDropdown === ulDropdownKey ? null : ulDropdownKey)}></i>
                         {activeDropdown === ulDropdownKey && (
                             <ul className={layout.dropdownStyle}>
-                                <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); onUlChange(UL_NONE_VALUE); setActiveDropdown(null); }}>
+                                <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); selectUlPreset(UL_NONE_VALUE); }}>
                                     선택 안함 <i className="ri-close-circle-line pc_red"></i>
                                 </li>
                                 {UL_CLASS_SUGGESTIONS.map((cls, idx) => (
-                                    <li key={idx} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); onUlChange(cls.value); setActiveDropdown(null); }}>
+                                    <li key={idx} className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); selectUlPreset(cls.value); }}>
                                         {cls.label}
                                     </li>
                                 ))}
-                                <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); onUlChange(''); setActiveDropdown(null); }}>
+                                <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); setIsUlLocked(false); onUlChange(''); setActiveDropdown(null); }}>
                                     직접 입력 <i className="ri-edit-line"></i>
                                 </li>
                             </ul>
@@ -101,7 +104,7 @@ export default function ListSettingsSection({
                         <span>시작(리스트2)</span>
                     </label>
                     {showColorToggle && (
-                        <label className={`${layout.checkItem} ${colorGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={colorGuide || undefined} data-dropdown={colorDataDropdown ? "true" : undefined}>
+                        <label className={`${layout.checkItem} ${colorGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} title={colorHintTitle} data-guide={colorGuide || undefined} data-dropdown={colorDataDropdown ? "true" : undefined}>
                             <input type="checkbox" checked={colorChecked || false} onChange={(e) => onColorChange(e.target.checked)} />
                             <span>색상 클래스</span>
                         </label>
