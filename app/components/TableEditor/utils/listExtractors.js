@@ -69,7 +69,7 @@ export const checkTitleMatch = (text, titConfig) => {
     if (type === 'hangul-dot' && (match = safeText.match(/^[가-힣ㄱ-ㅎ]\./))) return match[0];
     if (type === 'hangul-paren' && (match = safeText.match(/^[가-힣ㄱ-ㅎ]\)/))) return match[0];
 
-    if (type === 'law-chapter' && (match = safeText.match(/^제\s*\d+\s*[장편관]/))) return match[0];
+    if (type === 'law-chapter' && (match = safeText.match(/^제\s*\d+\s*[장편관절]/))) return match[0];
     if (type === 'law-article' && (match = safeText.match(/^제\s*\d+\s*조/))) return match[0];
     if (type === 'roman' && (match = safeText.match(/^([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ]|[IVX]+)\./i))) return match[0];
     
@@ -271,7 +271,7 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         const cleanTextForBreak = rawText.replace(/[\s\u200B-\u200D\uFEFF\xA0]/g, ''); 
         const isTitleMatch = isOuterText && (checkTitleMatch(rawText, tit1) || checkTitleMatch(rawText, tit2) || checkTitleMatch(rawText, tit3));
         
-        if (/^(제\d+[장편조관])/.test(cleanTextForBreak) || isTitleMatch) {
+        if (/^(제\d+[장편조관절])/.test(cleanTextForBreak) || isTitleMatch) {
             flushLastPara();
             lastLi = null; 
             contextStack.length = 0; 

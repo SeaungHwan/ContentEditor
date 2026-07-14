@@ -187,7 +187,7 @@ export const TIT_OPTIONS = [
     { value: 'hangul-dot', label: '한글: 가.' },
     { value: 'hangul-paren', label: '한글: 가)' },
     { value: 'roman', label: '로마자: Ⅰ.' },
-    { value: 'law-chapter', label: '제n장/편/관' },
+    { value: 'law-chapter', label: '제n장/편/관/절' },
     { value: 'law-article', label: '제n조' },
 ];
 
