@@ -233,6 +233,15 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         }
     };
 
+    // 닫는 </li> 누락 등으로 파싱 시 h1~h6이 li의 자손으로 딸려 들어간 경우,
+    // 헤딩과 그 이후 내용을 li 밖으로 분리해낸다.
+    const splitLiAtHeading = (liNode) => {
+        const children = Array.from(liNode.childNodes);
+        const headingIdx = children.findIndex(c => c.nodeType === 1 && /^H[1-6]$/i.test(c.tagName));
+        if (headingIdx === -1) return { before: children, after: [] };
+        return { before: children.slice(0, headingIdx), after: children.slice(headingIdx) };
+    };
+
     for (let i = 0; i < childNodes.length; i++) {
         const node = childNodes[i];
         if (node.nodeType === 3 && !node.textContent.trim()) continue;
@@ -392,19 +401,27 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
                 // noUl: 기존 ul/li를 p 태그로 풀어냄 (원본 내용 그대로 유지)
                 Array.from(node.children).forEach(liNode => {
                     if (liNode.tagName !== 'LI') return;
+                    const { before, after } = splitLiAtHeading(liNode);
                     const p = document.createElement('p');
-                    while (liNode.firstChild) p.appendChild(liNode.firstChild);
+                    before.forEach(c => p.appendChild(c));
                     if (p.innerHTML.trim()) rootNodes.push(p);
+                    after.forEach(c => rootNodes.push(c));
                 });
             } else {
-                const newList = document.createElement(node.tagName.toLowerCase());
+                let newList = document.createElement(node.tagName.toLowerCase());
                 Array.from(node.children).forEach(liNode => {
                     if (liNode.tagName !== 'LI') return;
+                    const { before, after } = splitLiAtHeading(liNode);
                     const newLi = document.createElement('li');
-                    while (liNode.firstChild) newLi.appendChild(liNode.firstChild);
-                    newList.appendChild(newLi);
+                    before.forEach(c => newLi.appendChild(c));
+                    if (newLi.hasChildNodes()) newList.appendChild(newLi);
+                    if (after.length > 0) {
+                        if (newList.children.length > 0) rootNodes.push(newList);
+                        after.forEach(c => rootNodes.push(c));
+                        newList = document.createElement(node.tagName.toLowerCase());
+                    }
                 });
-                rootNodes.push(newList);
+                if (newList.children.length > 0) rootNodes.push(newList);
             }
             contextStack.length = 0;
             lastLi = null;
