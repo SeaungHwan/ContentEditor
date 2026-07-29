@@ -347,12 +347,16 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     if (!markerA) continue;
 
                     // listA 이후 비리스트·비테이블 요소 수집 후 다음 리스트 탐색
+                    // heading 태그나 법령 섹션 제목(제N조/장 등)은 새 섹션의 시작이므로 병합 대상에서 제외
                     const betweenEls = [];
                     let nextListIdx = -1;
                     for (let j = i + 1; j < children.length; j++) {
                         const el = children[j];
                         if (el.tagName === 'OL' || el.tagName === 'UL') { nextListIdx = j; break; }
                         if (el.tagName === 'TABLE' || (el.nodeType === 1 && el.querySelector?.('table'))) break;
+                        if (/^h[1-6]$/i.test(el.tagName)) break;
+                        const elText = (el.textContent || '').replace(RE_WHITESPACE, '');
+                        if (/^제\d+[장편조관절항호]/.test(elText)) break;
                         betweenEls.push(el);
                     }
                     if (nextListIdx === -1 || betweenEls.length === 0) continue;
