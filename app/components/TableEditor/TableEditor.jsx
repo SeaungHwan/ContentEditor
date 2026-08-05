@@ -7,7 +7,7 @@ import layout from "../../layout.module.css";
 import { cleanTableHtml, updateStylesOnly } from './cleanTableHtml';
 import TableConfigToolbar from './TableConfigToolbar';
 import TocPanel from './TocPanel';
-import { GUIDE_MESSAGES, RE_NUMERIC, TEMP_ATTRS, TEMP_ATTRS_SELECTOR } from './utils/constants';
+import { GUIDE_MESSAGES, formatColWidths, TEMP_ATTRS, TEMP_ATTRS_SELECTOR } from './utils/constants';
 
 const AUTO_PASTE_KEY = 'table-editor-auto-paste';
 
@@ -114,9 +114,7 @@ function TableEditor({ initialHtml = '', onChange }) {
 
     const { presets, savePreset, deletePreset } = usePresets();
 
-    const formattedWidthString = useMemo(() =>
-        colWidths.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(','),
-    [colWidths]);
+    const formattedWidthString = useMemo(() => formatColWidths(colWidths), [colWidths]);
 
     const editorClasses = useMemo(() => ({
         tit1: config.tit1Class,
@@ -125,6 +123,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     }), [config.tit1Class, config.tit2Class, config.tit3Class]);
 
     const { handleClear, handleManualClean, handleCopy, handleExternalTableEdit } = useEditorActions({
+        setSelectedTableNode,
         editorRef: editorComponentRef,
         config,
         formattedWidthString,
@@ -159,6 +158,9 @@ function TableEditor({ initialHtml = '', onChange }) {
         if (instance) {
             instance.value = markedHtml;
             if (editorComponentRef.current.setFullContent) editorComponentRef.current.setFullContent(markedHtml);
+            // setFullContent가 에디터 DOM을 통째로 교체하므로, 이전에 선택돼 있던 표 노드는
+            // detach된 참조가 된다(useEditorActions의 handleManualClean/handleClear와 동일한 이유).
+            setSelectedTableNode(null);
         }
         setContent(markedHtml);
         setHeadingCandidates(candidates);
@@ -386,6 +388,11 @@ function TableEditor({ initialHtml = '', onChange }) {
         instance.events.fire('change');
         editorComponentRef.current?.setFullContent?.(html);
         setContent(html);
+        // setFullContent(html)이 editor.innerHTML을 재대입하며 내부적으로 전체 서브트리를 다시
+        // 생성하므로, 직전까지 selectedTableNode가 가리키던 라이브 DOM 노드는 detach된다.
+        // 초기화하지 않으면 fillSeq/열 너비 균등화 등 연속 액션이 죽은 노드를 대상으로
+        // 성공 토스트만 띄우고 조용히 아무것도 바꾸지 못하게 된다.
+        setSelectedTableNode(null);
     }, []);
 
     // B: 표 라벨 더블클릭 인라인 편집 (표 타입만 지원)
@@ -639,7 +646,9 @@ function TableEditor({ initialHtml = '', onChange }) {
         newNode.className = 'box_st2 rsp_img ac';
         newNode.innerHTML = '\n    <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%23e9e9e9%22%2F%3E%3C%2Fsvg%3E" alt="">\n';
 
-        const wrapperDiv = selectedTableNode.closest('div.tbl-st, div.box-st, div.box_st2');
+        // 'tbl_st'는 실제 기본 wrapperClassName(TableConfigContext.jsx)과 일치해야 wrapper div를 찾을 수 있다.
+        // 이전에는 'tbl-st'(하이픈)로 오타가 나 있어 정상 래핑된 표에서 항상 매칭에 실패했다.
+        const wrapperDiv = selectedTableNode.closest('div.tbl_st, div.box-st, div.box_st2');
         (wrapperDiv || selectedTableNode).replaceWith(newNode);
         syncEditorHtml();
         setSelectedTableNode(null);
@@ -832,7 +841,7 @@ function TableEditor({ initialHtml = '', onChange }) {
         const targetNode = instance.editor.querySelector(`[data-temp-id="${tableEditModal.tempId}"]`);
 
         if (targetNode) {
-            const formattedWidth = localColWidths.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(',');
+            const formattedWidth = formatColWidths(localColWidths);
             const tempParserDiv = document.createElement('div');
             tempParserDiv.innerHTML = tableEditModal.html;
             tempParserDiv.querySelectorAll('[data-local-config],[data-local-colwidths]').forEach(el => {

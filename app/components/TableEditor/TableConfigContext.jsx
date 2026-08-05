@@ -9,9 +9,13 @@
  *   - wrapperClassName   : 테이블을 감싸는 div 클래스 (기본값: 'tbl-st')
  *   - ulClassName        : 일반 텍스트 영역의 ul 클래스 (기본값: 'bu-st')
  *   - olType             : ol로 변환할 마커 타입 목록 (복수 선택 가능)
+ *   - olClassName        : 일반 텍스트 영역의 ol 클래스 기본 이름 (기본값: 'list_ol' → list_ol1, list_ol2 …)
+ *   - numClassName       : ol li 내 번호를 감싸는 span 클래스명 (기본값: 'num')
  *   - keepMarker         : 리스트 변환 시 원본 기호 문자를 유지할지 여부
  *   - tableUlClassName   : 테이블 내부 전용 ul 클래스 (일반 텍스트와 별도 적용)
  *   - tableOlType        : 테이블 내부 전용 ol 타입 목록
+ *   - tableOlClassName   : 테이블 내부 전용 ol 클래스 기본 이름
+ *   - tableNumClassName  : 테이블 내부 전용 번호 span 클래스명
  *   - isColorMode        : 텍스트 색상을 pc_xxx 클래스로 변환할지 여부
  *   - tableIsColorMode   : 테이블 내부 색상을 pc_xxx 클래스로 변환할지 여부
  *   - isWrapDiv          : table을 div로 감쌀지 여부
@@ -37,12 +41,16 @@ const initialConfig = {
     // ✨ 일반 텍스트(컨텐츠) 전용 리스트 설정
     ulClassName: 'list_st',
     olType: [],
+    olClassName: 'list_ol',
+    numClassName: 'num',
     keepMarker: false,
     useAtteMarker: true,
 
     // ✨ 표(Table) 내부 전용 리스트 설정 추가
     tableUlClassName: 'list_st',
     tableOlType: [],
+    tableOlClassName: 'list_ol',
+    tableNumClassName: 'num',
     tableKeepMarker: false,
     tableUseAtteMarker: false,
 

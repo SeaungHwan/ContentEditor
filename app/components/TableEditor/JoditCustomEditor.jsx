@@ -26,7 +26,8 @@
  *   - blur        : 포커스 이탈 시 onChange 호출(content 동기화)
  *   - mouseup/keyup: 현재 커서가 위치한 table 요소를 onTableSelect로 전달
  *   - beforeSetMode: 소스 모드 전환 전 HTML을 js-beautify로 들여쓰기 포맷
- *   - afterInit   : Jodit 소스모드 mousedown/up/click 이벤트 버블링을 차단해
+ *   - afterInit   : editorRef 확보 직후 initialHtmlRef(마운트 시 캡처한 초기 HTML)를 주입하고,
+ *                   Jodit 소스모드 mousedown/up/click 이벤트 버블링을 차단해
  *                   소스 textarea 조작 시 의도치 않은 synchro 트리거 방지
  */
 "use client";
@@ -56,6 +57,11 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
     const statsDebounceRef = useRef(null);
     const tableSelectDebounceRef = useRef(null);
     const htmlBeautifyRef = useRef(null);
+    // 초기 콘텐츠를 고정 300ms 타이머로 주입하면, jodit-react의 동적 임포트/초기화(afterInit)가
+    // 느린 기기·네트워크에서 300ms보다 늦게 끝날 때 editorRef.current가 아직 null이라 조용히
+    // 씹혀버리는 경쟁 상태가 있었다. afterInit이 실제로 완료되는 시점에 값을 직접 읽어 쓰도록
+    // ref에 저장해두고, 타이머 대신 afterInit 콜백에서 곧바로 소비한다.
+    const initialHtmlRef = useRef('');
 
     useEffect(() => {
         import('js-beautify').then(mod => { htmlBeautifyRef.current = mod.html; });
@@ -67,12 +73,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
 
     useEffect(() => {
         const tmpl = document.getElementById('table-editor-data');
-        const html = tmpl ? tmpl.innerHTML.trim() : (initialData || '');
-        if (!html) return;
-        const timer = setTimeout(() => {
-            if (editorRef.current) editorRef.current.value = html;
-        }, 300);
-        return () => clearTimeout(timer);
+        initialHtmlRef.current = (tmpl ? tmpl.innerHTML.trim() : (initialData || '')) || '';
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -338,6 +339,9 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
 
             afterInit: (instance) => {
                 editorRef.current = instance;
+                if (initialHtmlRef.current) {
+                    instance.value = initialHtmlRef.current;
+                }
 
                 const handleNativePaste = (e) => {
                     if (e.clipboardData?.getData('text/html')) {

@@ -11,6 +11,10 @@
  *   handleManualClean()   - cleanTableHtml 전체 재처리
  *   handleCopy()          - 정제된 HTML 클립보드 복사
  *   handleExternalTableEdit() - 개별 표 설정 모달 열기
+ *
+ * handleClear/handleManualClean은 에디터 DOM을 통째로 교체(clear()/setFullContent())하므로,
+ * 그 이전에 선택돼 있던 표 노드는 detach된 참조가 된다. setSelectedTableNode가 전달되면
+ * 두 함수 모두 처리 후 선택 상태를 null로 되돌려 죽은 노드를 대상으로 한 조용한 no-op을 막는다.
  */
 "use client";
 import { useCallback } from 'react';
@@ -36,7 +40,7 @@ function hasRealContent(html) {
 }
 
 export default function useEditorActions({
-    editorRef, config, formattedWidthString, setContent, triggerToast, openTableEditModal
+    editorRef, config, formattedWidthString, setContent, triggerToast, openTableEditModal, setSelectedTableNode
 }) {
 
     // 1. 전체 삭제
@@ -45,8 +49,11 @@ export default function useEditorActions({
         if (!hasRealContent(currentVal)) return triggerToast('삭제할 내용이 없습니다.');
         if (editorRef.current) editorRef.current.clear();
         setContent('');
+        // 에디터 DOM이 통째로 비워지므로, 이전에 선택돼 있던 표 노드는 detach된 참조가 된다.
+        // 초기화하지 않으면 표 편집 툴바 버튼들이 죽은 노드를 대상으로 조용히 no-op된다.
+        setSelectedTableNode?.(null);
         triggerToast('삭제되었습니다.');
-    }, [editorRef, setContent, triggerToast]);
+    }, [editorRef, setContent, setSelectedTableNode, triggerToast]);
 
     // 2. 수동 정리
     const handleManualClean = useCallback(async ({ clearFirst = false } = {}) => {
@@ -66,12 +73,16 @@ export default function useEditorActions({
             const cleanedHtml = cleanTableHtml(currentVal, config, formattedWidthString);
             if (editorRef.current) editorRef.current.setFullContent(cleanedHtml);
             setContent(cleanedHtml);
+            // setFullContent가 에디터의 전체 DOM 트리를 새로 파싱해 교체하므로, 이전에 선택돼 있던
+            // 표 노드는 detach된 참조가 된다. 초기화하지 않으면 표 편집 툴바 버튼(순번 채우기,
+            // 열 너비 균등화 등)이 성공 토스트를 띄우면서도 실제로는 아무것도 바꾸지 못하게 된다.
+            setSelectedTableNode?.(null);
             triggerToast('문서 정리가 완료되었습니다.');
         } catch (error) {
             console.error("Clean Document Error", error);
             triggerToast('정리 중 오류가 발생했습니다.', 'error');
         }
-    }, [editorRef, config, formattedWidthString, setContent, triggerToast]);
+    }, [editorRef, config, formattedWidthString, setContent, setSelectedTableNode, triggerToast]);
 
     // 3. 복사하기
     const handleCopy = useCallback(async () => {

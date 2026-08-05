@@ -19,7 +19,7 @@
  *     5. 빈 요소 제거: p/div/span, li, td/th 내 빈 노드를 일괄 삭제
  *     6. _processLinks: plain text URL을 <a class="bu_link"> 링크로 변환,
  *        file:// · # 등 유효하지 않은 href 태그는 제거
- *     7. 원형 특수문자 변환: ol li > span.num 내 ①②③ → 아라비아 숫자로 변환
+ *     7. 원형 특수문자 변환: ol li > span.{numClassName|tableNumClassName} 내 ①②③ → 아라비아 숫자로 변환
  *
  *   updateStylesOnly (styleUpdater.js에서 re-export)
  *     → 에디터 내용을 다시 파싱하지 않고 클래스/스타일만 빠르게 갱신할 때 사용
@@ -470,8 +470,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         lastChild.remove();
     }
 
-    // ol li > span.num 내 원형 특수문자(① ② ③ 등)를 아라비아 숫자로 변환
-    resultWrapper.querySelectorAll('ol li span.num').forEach(span => {
+    // ol li > span.{numClass} 내 원형 특수문자(① ② ③ 등)를 아라비아 숫자로 변환
+    // 텍스트 블록(numClassName)과 테이블 블록(tableNumClassName)이 서로 다른 클래스명을 쓸 수 있으므로 둘 다 조회한다.
+    const numClasses = Array.from(new Set([
+        (config.numClassName && config.numClassName.trim()) || 'num',
+        (config.tableNumClassName && config.tableNumClassName.trim()) || 'num',
+    ]));
+    resultWrapper.querySelectorAll(numClasses.map(c => `ol li span.${c}`).join(',')).forEach(span => {
         const original = span.textContent.trim();
         const converted = convertCircleToArabic(original);
         if (converted !== original) span.textContent = converted;

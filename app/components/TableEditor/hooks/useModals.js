@@ -114,8 +114,14 @@ export default function useModals() {
 
     const closeTableEditModal = useCallback(() => {
         toggleModal('tableEdit', false);
-        // fade-out 완료 후 데이터 정리
-        setTimeout(() => setTableEditData(INITIAL_TABLE_EDIT_DATA), FADE_DURATION);
+        // fade-out 완료 후 데이터 정리 — 다른 타이머들과 마찬가지로 timersRef에 등록해야
+        // 언마운트 시 정리 이펙트(아래)가 이 타이머도 함께 clearTimeout 해준다.
+        // 'tableEdit' 키는 toggleModal이 자신의 fade 타이머로 이미 쓰고 있으므로 별도 키를 사용한다.
+        if (timersRef.current.tableEditDataCleanup) clearTimeout(timersRef.current.tableEditDataCleanup);
+        timersRef.current.tableEditDataCleanup = setTimeout(() => {
+            setTableEditData(INITIAL_TABLE_EDIT_DATA);
+            delete timersRef.current.tableEditDataCleanup;
+        }, FADE_DURATION);
     }, [toggleModal]);
 
     return {

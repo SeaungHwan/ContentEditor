@@ -12,9 +12,11 @@
  *   updateStylesOnly(htmlString, config, colWidths) → string
  *     - 전체 HTML을 파싱 후 모든 <table> 요소를 대상으로:
  *       1. data-local-config / data-local-colwidths 속성이 있으면 로컬 설정 우선 적용
+ *          (wrapperClassName/isWrapDiv/isVerticalHeader뿐 아니라 tableUlClassName/
+ *           tableOlClassName/tableListStartFrom2도 개별 표 설정값이 있으면 우선한다)
  *       2. isWrapDiv에 따라 table을 div로 감싸거나 제거하고 wrapperClassName 적용
  *       3. applyColGroupHelper로 <colgroup> 재생성 (열 너비 변경 반영)
- *       4. applyNestedClassesHelper로 td/th 내 ul 클래스 재적용
+ *       4. applyNestedClassesHelper로 td/th 내 ul/ol 클래스 재적용
  *       5. applyVerticalHeaders로 th 세로 방향 여부 재적용
  *     - cleanTableHtml과 달리 리스트 변환, 태그 정제 등 무거운 처리는 하지 않는다.
  */
@@ -25,7 +27,7 @@
 import { getDOMParser } from './htmlCleaners';
 import { applyColGroupHelper, applyVerticalHeaders, applyWrapDiv } from './tableFormatters';
 import { applyNestedClassesHelper } from './listExtractors';
-import { RE_NUMERIC } from './constants';
+import { formatColWidths } from './constants';
 
 export const updateStylesOnly = (htmlString, config, colWidths) => {
     if (typeof window === 'undefined' || !document || !htmlString) return htmlString || '';
@@ -33,6 +35,8 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
     const {
         wrapperClassName: wrapperClass,
         tableUlClassName: ulClass,
+        tableOlClassName: olClassName,
+        tableListStartFrom2,
         isWrapDiv = true,
         isVerticalHeader = false
     } = config;
@@ -57,6 +61,11 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
             let curWrapDiv = isWrapDiv;
             let curColWidths = colWidths;
             let curIsVertical = isVerticalHeader;
+            // 개별 표 설정(TableEditModal)에서 편집 가능한 ul/ol 클래스명 — data-local-config에
+            // 저장은 되지만 그동안 이 함수가 다시 읽어들이지 않아 항상 전역값이 쓰이던 부분(버그 수정).
+            let curUlClass = ulClass;
+            let curOlClassName = olClassName;
+            let curListStartFrom2 = tableListStartFrom2;
 
             const localCfgStr = searchNode.getAttribute('data-local-config');
             if (localCfgStr) {
@@ -65,13 +74,18 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
                     curWClass = lCfg.wrapperClassName;
                     curWrapDiv = lCfg.isWrapDiv;
                     curIsVertical = lCfg.isVerticalHeader;
+                    // 예전에 저장된 data-local-config(이 필드들이 추가되기 전)에는 값이 없을 수 있으므로
+                    // undefined일 때는 전역값을 그대로 유지한다.
+                    if (lCfg.tableUlClassName !== undefined) curUlClass = lCfg.tableUlClassName;
+                    if (lCfg.tableOlClassName !== undefined) curOlClassName = lCfg.tableOlClassName;
+                    if (lCfg.tableListStartFrom2 !== undefined) curListStartFrom2 = lCfg.tableListStartFrom2;
                 } catch (e) {}
             }
             const localCwStr = searchNode.getAttribute('data-local-colwidths');
             if (localCwStr) {
                 try {
                     const lCw = JSON.parse(localCwStr);
-                    curColWidths = lCw.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(',');
+                    curColWidths = formatColWidths(lCw);
                 } catch (e) {}
             }
 
@@ -88,7 +102,7 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
 
             applyColGroupHelper(table, curColWidths);
             const allCells = table.querySelectorAll('td, th');
-            allCells.forEach(cell => applyNestedClassesHelper(cell, ulClass));
+            allCells.forEach(cell => applyNestedClassesHelper(cell, curUlClass, curListStartFrom2 ? 1 : 0, curOlClassName));
             applyVerticalHeaders(table, curIsVertical);
         });
 

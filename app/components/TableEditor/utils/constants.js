@@ -29,6 +29,7 @@
  *     UL_NONE_VALUE            : ul 클래스 "선택 안함" 구분 값 ('__no_ul__')
  *     TABLE_CLASS_SUGGESTIONS  : 테이블 클래스명 자동완성 후보 목록
  *     UL_CLASS_SUGGESTIONS     : ul 클래스명 자동완성 후보 목록
+ *     OL_STYLE_PRESETS         : ol 클래스명 + 번호 span 클래스명 조합 프리셋 목록 (실사용 2종류만 제공)
  *     OL_OPTIONS               : ol 형식 선택 옵션 목록 (숫자, 한글, 원형 등)
  *     TIT_OPTIONS              : 제목(h3~h5) 감지 패턴 선택 옵션 목록
  *     TARGET_COLORS            : color → pc_xxx 클래스 매핑용 기준 색상 목록 (RGB)
@@ -39,6 +40,11 @@ export const ALLOWED_TAGS = new Set(['div', 'table', 'thead', 'tbody', 'tr', 'th
 
 // 숫자(정수/소수)만 포함된 문자열 검사 — .test() 전용 (g 플래그 없음)
 export const RE_NUMERIC = /^[\d.]+$/;
+
+// colWidths 배열 → 콤마 구분 문자열 변환. 순수 숫자 값에는 '%' 단위를 자동으로 붙인다.
+// (TableEditor.jsx, tableProcessor.js, styleUpdater.js 4곳에 중복되어 있던 로직을 하나로 통합)
+export const formatColWidths = (widthsArray) =>
+    widthsArray.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(',');
 
 // 공백·제로폭 문자 제거 — .replace()와 함께 사용 (.test()에 사용 금지)
 export const RE_WHITESPACE = /[\s\u00A0\u200B-\u200D\uFEFF]/g;
@@ -166,6 +172,12 @@ export const TABLE_SCROLL_SUGGESTIONS = [
 export const UL_CLASS_SUGGESTIONS = [
     { label: 'list_st', value: 'list_st' },
 ];
+// ol(list_ol1, list_ol2 …) 클래스명과 그 안의 번호 span 클래스명은 항상 짝으로 함께 쓰이므로
+// 자유 입력 대신 실제 사용 중인 조합 2가지 중에서 고르게 한다.
+export const OL_STYLE_PRESETS = [
+    { label: 'list_ol / num', olClass: 'list_ol', numClass: 'num' },
+    { label: 'order-st / mrk', olClass: 'order-st', numClass: 'mrk' },
+];
 export const TIT_CLASS_SUGGESTIONS = [
     { label: 'tit1', value: 'tit1' },
     { label: 'tit2', value: 'tit2' },
@@ -212,6 +224,7 @@ export const GUIDE_MESSAGES = {
     modeSelect: `[색상 모드]\n 활성화 시 컨텐츠 내의 색상 데이터를 가져옵니다.`,
     classUlConfig: `[리스트 클래스 설정]\n리스트(ul)에 적용할 클래스명을 지정합니다.\n선택 안함으로 설정시 p태그로 반환됩니다.`,
     classOlConfig: `[숫자 리스트 형식 설정]\n숫자 리스트(ol)에 적용할 형식을 지정합니다.\n숫자, 한글 형식등 (다중선택 가능)`,
+    classOlStyleConfig: `[숫자 리스트 스타일 설정]\nol과 그 안의 번호(span)에 적용할 클래스명 조합을 선택합니다.\nlist_ol/num 또는 order-st/mrk 중 선택하세요.`,
     atteMarker: `[※ 변환]\n※ 또는 * 로 시작하는 줄을\nbu_atte 클래스 p태그로 변환합니다.\n해제 시 원본 텍스트로 유지합니다.`,
     noList: `[기호 유지]\nul/li로 변환 시 원본 특수문자나 번호를\n지우지 않고 그대로 유지합니다.`,
     List2: `[리스트 시작]\n리스트 클래스 2부터 시작\n예:(list_st2)`,

@@ -44,8 +44,7 @@ const ColWidthControl = React.memo(({ colWidths, setColWidths, layout, isGuideMo
     };
 
     const handleAdd = () => {
-        const current = (localWidths.length === 1 && localWidths[0] === 'auto-calc') ? [] : localWidths;
-        const next = [...current, ''];
+        const next = [...localWidths, ''];
         setLocalWidths(next);
         setColWidths(next);
         setTimeout(() => {
@@ -67,9 +66,12 @@ const ColWidthControl = React.memo(({ colWidths, setColWidths, layout, isGuideMo
 
     const isAutoMode = localWidths.length === 1 && localWidths[0] === 'auto-calc';
 
-    const handleAutoCalcToggle = () => {
-        if (isAutoMode) { setLocalWidths(['']); setColWidths(['']); }
-        else { setLocalWidths(['auto-calc']); setColWidths(['auto-calc']); }
+    // 각 버튼이 "지금 상태를 뒤집는" 공용 토글이 아니라 자신이 나타내는 모드를 명시적으로 지정하도록 한다.
+    // (이미 선택된 버튼을 다시 눌러도 반대 모드로 튕기며 수동 입력값이 사라지는 문제 방지)
+    const setMode = (nextIsAuto) => {
+        if (nextIsAuto === isAutoMode) return;
+        if (nextIsAuto) { setLocalWidths(['auto-calc']); setColWidths(['auto-calc']); }
+        else { setLocalWidths(['']); setColWidths(['']); }
     };
 
     const sliderTranslate = isAutoMode ? '0%' : '100%';
@@ -91,14 +93,14 @@ const ColWidthControl = React.memo(({ colWidths, setColWidths, layout, isGuideMo
                 />
                 <button type="button"
                   className={`${layout.toggleBtn} ${isAutoMode ? layout.toggleActive : ""}`}
-                  onClick={handleAutoCalcToggle}
+                  onClick={() => setMode(true)}
                   title="모든 열을 균등하게 분할합니다."
                 >
                   자동
                 </button>
                 <button type="button"
                   className={`${layout.toggleBtn} ${!isAutoMode ? layout.toggleActive : ""}`}
-                  onClick={handleAutoCalcToggle}
+                  onClick={() => setMode(false)}
                   title="열 너비를 직접 입력합니다."
                 >
                   수동
@@ -117,7 +119,6 @@ const ColWidthControl = React.memo(({ colWidths, setColWidths, layout, isGuideMo
                       maxLength={10}
                       value={width}
                       placeholder="예) 20"
-                      disabled={false}
                       onChange={(e) => handleChange(index, e.target.value)}
                       onBlur={() => handleBlur(index)}
                       onKeyDown={(e) => {

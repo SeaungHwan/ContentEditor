@@ -7,7 +7,7 @@
  *
  * 설정 가능 항목:
  *   - 타이틀 설정 (tit1/tit2/tit3): 패턴 타입 + 직접 입력값 + 클래스명
- *   - 리스트 ul 클래스, ol 변환 타입, 마커 유지 여부
+ *   - 리스트 ul 클래스, ol 변환 타입, ol/번호(span) 클래스명, 마커 유지 여부
  *   - 텍스트 색상 모드(isColorMode, isColorClassMode)
  *
  * GlobalTableConfigModal과의 차이:
@@ -168,6 +168,13 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                         olValue={localConfig.olType}
                         onOlChange={(v) => updateConfig('olType', v)}
                         olGuide={isGuideMode ? GUIDE_MESSAGES.classOlConfig : undefined}
+                        olStyleHintTitle="숫자 목록(ol)과 번호(span)에 적용할 클래스명 조합입니다."
+                        olClassValue={localConfig.olClassName}
+                        onOlClassChange={(v) => updateConfig('olClassName', v)}
+                        numClassValue={localConfig.numClassName}
+                        onNumClassChange={(v) => updateConfig('numClassName', v)}
+                        olStyleDropdownKey="olStyle"
+                        olStyleGuide={isGuideMode ? GUIDE_MESSAGES.classOlStyleConfig : undefined}
                         atteChecked={localConfig.useAtteMarker}
                         onAtteChange={(v) => updateConfig('useAtteMarker', v)}
                         atteGuide={isGuideMode ? GUIDE_MESSAGES.atteMarker : undefined}

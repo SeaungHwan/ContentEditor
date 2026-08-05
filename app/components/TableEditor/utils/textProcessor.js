@@ -36,15 +36,16 @@ import { UL_NONE_VALUE } from './constants';
 const processTextContentBase = (containerDOM, config, isColorMode, isColorClassMode) => {
     if (!containerDOM || !config) return;
 
-    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2 } = config;
+    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, olClassName, numClassName, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2 } = config;
     const noUl = ulClass === UL_NONE_VALUE;
     const noAtte = useAtteMarker === false;
+    const numClass = (numClassName && numClassName.trim()) ? numClassName.trim() : 'num';
 
     // 1. 셀 내용 처리 및 클래스 적용
     processMsoLists(containerDOM);
-    processCellContent(containerDOM, keepMarker, true, tit1, tit2, tit3, olType, noUl, noAtte);
-    applyNestedClassesHelper(containerDOM, ulClass, listStartFrom2 ? 1 : 0);
-    performCleanup(containerDOM);
+    processCellContent(containerDOM, keepMarker, true, tit1, tit2, tit3, olType, noUl, noAtte, numClass);
+    applyNestedClassesHelper(containerDOM, ulClass, listStartFrom2 ? 1 : 0, olClassName);
+    performCleanup(containerDOM, numClass);
 
     // 2. 제목 태그(H3, H4, H5) 및 텍스트 마커 정리 로직
      Array.from(containerDOM.children).forEach(child => {
@@ -120,7 +121,7 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
 
     // 4. traverseAndClean이 색상을 정규화한 뒤 동일 class/style의 인접 span을 재병합
     //    (정규화 전 스타일 순서/속성 차이로 performCleanup에서 병합 실패한 span 처리)
-    if (isColorMode) mergeAdjacentColorSpans(containerDOM);
+    if (isColorMode) mergeAdjacentColorSpans(containerDOM, numClass);
 };
 
 export const processTextContentNormal = (containerDOM, config) => {

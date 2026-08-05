@@ -11,23 +11,23 @@
  *     - 텍스트가 tit1/tit2/tit3 설정(커스텀 문자열 또는 패턴 타입)과 일치하는지 확인.
  *     - 일치하면 매칭된 마커 문자열, 불일치면 false 반환.
  *
- *   applyNestedClassesHelper(cell, baseUlClassName, levelOffset)
+ *   applyNestedClassesHelper(cell, baseUlClassName, levelOffset, baseOlClassName)
  *     - cell 내 ul/ol을 깊이(depth)에 따라 list_st1, list_st2 … 형태의 클래스로 지정.
- *     - ol은 항상 'list_ol1', 'list_ol2' … 사용 (olBaseName='list_ol' 고정).
+ *     - ol은 baseOlClassName(기본값 'list_ol') 기준으로 'list_ol1', 'list_ol2' … 형태로 지정.
  *     - levelOffset: GlobalTableConfigModal의 '리스트 시작 2' 옵션 적용 시 1 전달.
  *
  *   flattenHeaderCell(cell)
  *     - th 셀 전용. ul/ol/li를 <br> 구분 텍스트로 풀어내고 bu_atte 클래스를 제거해
  *       th 내부에 리스트/bu_atte 구조가 절대 남지 않도록 한다.
  *
- *   processCellContent(cell, keepMarker, isOuterText, tit1, tit2, tit3, olType, noUl)
+ *   processCellContent(cell, keepMarker, isOuterText, tit1, tit2, tit3, olType, noUl, noAtte, numClass)
  *     - cell의 childNodes를 순회하며 마커 패턴에 따라 ul/ol/li로 구조화한다.
  *     - 처리 우선순위:
  *       1. H1~H6 태그 → 그대로 유지, 스택 초기화
  *       2. 법령 형식(제n장/편/조) 또는 tit 매칭 → p 태그로 감싸 컨텍스트 차단
  *       3. ※ 또는 * 시작 → p.bu_atte 로 변환 (keepMarker=false이면 기호 제거)
  *       4. 마커 패턴 감지(getMarkerInfo):
- *          - olType에 포함된 마커 → ol li (span.num에 아라비아 숫자 삽입)
+ *          - olType에 포함된 마커 → ol li (span.{numClass}에 아라비아 숫자 삽입, 기본값 'num')
  *          - 그 외 → ul li
  *          - noUl=true이면 ul 변환 대상은 p 태그로 유지
  *          - contextStack으로 동일 마커는 같은 리스트에, 다른 마커는 중첩 리스트로 처리
@@ -76,10 +76,10 @@ export const checkTitleMatch = (text, titConfig) => {
     return false;
 };
 
-export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0) => {
+export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0, baseOlClassName = 'list_ol') => {
     if (!cell) return;
     const ulBaseName = (baseUlClassName && baseUlClassName !== UL_NONE_VALUE && baseUlClassName.trim()) ? baseUlClassName.trim() : '';
-    const olBaseName = 'list_ol';
+    const olBaseName = (baseOlClassName && baseOlClassName.trim()) ? baseOlClassName.trim() : '';
 
     // ulCount/olCount: 현재 노드까지 오는 동안 만난 조상 UL/OL 개수(재귀 하강 중 누적).
     // 예전에는 매 노드마다 cell까지 부모를 거슬러 올라가며 다시 세었으나(O(depth) x 호출 횟수 = O(depth^2)),
@@ -112,7 +112,7 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0)
 // th 셀은 ul/ol/li, bu_atte 구조가 절대 만들어지면 안 되므로 processCellContent 대신 호출한다.
 // 이미 존재하는 ul/ol/li(붙여넣기 등으로 유입)는 li 내용을 <br>로 이어 붙인 순수 텍스트로 풀어내고,
 // bu_atte 클래스는 제거해 이후 performCleanup이 일반 p처럼 <br>로 처리하게 한다.
-export const flattenHeaderCell = (cell) => {
+export const flattenHeaderCell = (cell, numClass = 'num') => {
     let list;
     while ((list = cell.querySelector('ul, ol'))) {
         const items = Array.from(list.children).filter(li => li.tagName === 'LI');
@@ -123,11 +123,15 @@ export const flattenHeaderCell = (cell) => {
         });
         list.replaceWith(frag);
     }
-    cell.querySelectorAll('span.num').forEach(span => span.replaceWith(...span.childNodes));
+    const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : 'num';
+    cell.querySelectorAll(`span.${safeNumClass}`).forEach(span => span.replaceWith(...span.childNodes));
     cell.querySelectorAll('p.bu_atte').forEach(p => p.classList.remove('bu_atte'));
 };
 
-export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false) => {
+export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = 'num') => {
+    // 빈 문자열/미지정 시 'num'으로 폴백: 클래스가 완전히 없어지면 traverseAndClean이
+    // class/style 없는 span을 unwrap하면서 번호 span 자체가 사라지므로 반드시 값이 있어야 한다.
+    const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : 'num';
     
     const sanitizeSpecialChars = (text) => {
         if (!text) return text;
@@ -486,7 +490,7 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
             if (!keepMarker) {
             if (targetTagName === 'ol') {
                 const spanNum = document.createElement('span');
-                spanNum.className = 'num';
+                spanNum.className = safeNumClass;
                 const rawChar = markerInfo.rawMarker || markerInfo.char.replace(/\s+/g, '');
                 spanNum.textContent = convertCircleToArabic(rawChar);
                 li.appendChild(spanNum);

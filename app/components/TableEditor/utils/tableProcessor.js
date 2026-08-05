@@ -40,7 +40,7 @@
 import { traverseAndClean, performCleanup, mergeAdjacentColorSpans } from './htmlCleaners';
 import { applyTableSemantics, applyVerticalHeaders } from './tableFormatters';
 import { applyNestedClassesHelper, processCellContent, processMsoLists, flattenHeaderCell } from './listExtractors';
-import { UL_NONE_VALUE, RE_NUMERIC } from './constants';
+import { UL_NONE_VALUE, formatColWidths } from './constants';
 
 
 // sourceEl: DOM 노드를 직접 받아 처리 후 tempDiv(DOM)를 반환한다.
@@ -102,6 +102,8 @@ const applyTableFormats = (container, config, colWidths) => {
     wrapperClassName: wrapperClass,
     tableUlClassName: ulClass,
     tableOlType: olType,
+    tableOlClassName: olClassName,
+    tableNumClassName: numClassName,
     tableKeepMarker: keepMarker,
     tableUseAtteMarker,
     tableType, isWrapDiv, isVerticalHeader, headerRows, headerCols, isColorMode, isColorClassMode, tableListStartFrom2
@@ -110,14 +112,14 @@ const applyTableFormats = (container, config, colWidths) => {
     const allTables = Array.from(container.querySelectorAll('table')).reverse();
     allTables.forEach(table => {
         if (!table.parentNode) return;
-        
+
         if (table.parentElement === container) {
             const safeWrapper = document.createElement('div');
             container.insertBefore(safeWrapper, table);
             safeWrapper.appendChild(table);
         }
         const isNested = !!table.parentElement.closest('table');
-        
+
         let curWClass = wrapperClass;
         let curType = isNested ? 'default' : tableType;
         let curWrapDiv = isWrapDiv;
@@ -126,6 +128,14 @@ const applyTableFormats = (container, config, colWidths) => {
         let curColWidths = colWidths;
         let curIsVertical = isVerticalHeader;
         let curUseAtteMarker = tableUseAtteMarker;
+        // 개별 표 설정(TableEditModal)에서 편집 가능한 리스트 관련 필드 — data-local-config에
+        // 저장은 되지만 그동안 이 함수가 다시 읽어들이지 않아 항상 전역값이 쓰이던 부분(버그 수정).
+        let curUlClass = ulClass;
+        let curOlType = olType;
+        let curOlClassName = olClassName;
+        let curNumClassName = numClassName;
+        let curKeepMarker = keepMarker;
+        let curListStartFrom2 = tableListStartFrom2;
 
         let searchNode = table;
         if (table.parentElement && (
@@ -148,25 +158,35 @@ const applyTableFormats = (container, config, colWidths) => {
                 curHeaderCols = lCfg.headerCols;
                 curIsVertical = lCfg.isVerticalHeader;
                 if (lCfg.tableUseAtteMarker !== undefined) curUseAtteMarker = lCfg.tableUseAtteMarker;
+                // 예전에 저장된 data-local-config(이 필드들이 추가되기 전)에는 값이 없을 수 있으므로
+                // undefined일 때는 전역값을 그대로 유지한다.
+                if (lCfg.tableUlClassName !== undefined) curUlClass = lCfg.tableUlClassName;
+                if (lCfg.tableOlType !== undefined) curOlType = lCfg.tableOlType;
+                if (lCfg.tableOlClassName !== undefined) curOlClassName = lCfg.tableOlClassName;
+                if (lCfg.tableNumClassName !== undefined) curNumClassName = lCfg.tableNumClassName;
+                if (lCfg.tableKeepMarker !== undefined) curKeepMarker = lCfg.tableKeepMarker;
+                if (lCfg.tableListStartFrom2 !== undefined) curListStartFrom2 = lCfg.tableListStartFrom2;
             } catch(e) {}
         }
         const localCwStr = searchNode.getAttribute('data-local-colwidths');
         if (localCwStr) {
             try {
                 const lCw = JSON.parse(localCwStr);
-                curColWidths = lCw.map(w => RE_NUMERIC.test(w.trim()) ? w.trim() + '%' : w).join(',');
+                curColWidths = formatColWidths(lCw);
             } catch(e) {}
         }
         searchNode.removeAttribute('data-local-config');
         searchNode.removeAttribute('data-local-colwidths');
+
+        const curNumClass = (curNumClassName && curNumClassName.trim()) ? curNumClassName.trim() : 'num';
 
         applyTableSemantics(table, curWClass, curType, isNested, curWrapDiv, curHeaderRows, curHeaderCols, curColWidths);
 
         // al(왼쪽 정렬) 판정용 셀렉터 — ul/ol/bu_atte 중 하나라도 있으면 al 클래스 적용.
         // 셋을 하나의 결합 셀렉터로 합쳐 querySelector 호출 1회로 판정한다.
         const alSelector = [
-            (ulClass && ulClass.trim()) ? `ul[class*="${ulClass.trim()}"]` : null,
-            'ol[class*="order-st"]',
+            (curUlClass && curUlClass.trim()) ? `ul[class*="${curUlClass.trim()}"]` : null,
+            (curOlClassName && curOlClassName.trim()) ? `ol[class*="${curOlClassName.trim()}"]` : null,
             '.bu_atte',
         ].filter(Boolean).join(',');
 
@@ -175,18 +195,18 @@ const applyTableFormats = (container, config, colWidths) => {
             const inThead = !!row.closest('thead');
             Array.from(row.cells).forEach(cell => {
                 if (cell.tagName === 'TH') {
-                    flattenHeaderCell(cell);
+                    flattenHeaderCell(cell, curNumClass);
                 } else if (!inThead && cell.tagName === 'TD') {
-                    const noUl = ulClass === UL_NONE_VALUE;
+                    const noUl = curUlClass === UL_NONE_VALUE;
                     const noAtte = curUseAtteMarker === false;
-                    processCellContent(cell, keepMarker, false, null, null, null, olType, noUl, noAtte);
-                    applyNestedClassesHelper(cell, ulClass, tableListStartFrom2 ? 1 : 0);
+                    processCellContent(cell, curKeepMarker, false, null, null, null, curOlType, noUl, noAtte, curNumClass);
+                    applyNestedClassesHelper(cell, curUlClass, curListStartFrom2 ? 1 : 0, curOlClassName);
                 }
                 if (!cell.querySelector('table') && !cell.textContent.trim()) cell.innerHTML = '';
 
-                performCleanup(cell);
+                performCleanup(cell, curNumClass);
                 traverseAndClean(cell, isColorMode, isColorClassMode);
-                if (isColorMode) mergeAdjacentColorSpans(cell);
+                if (isColorMode) mergeAdjacentColorSpans(cell, curNumClass);
 
                 if (cell.querySelector(alSelector)) {
                     cell.classList.remove('ac', 'ar');

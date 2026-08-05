@@ -21,19 +21,12 @@ const HEADING_TAGS = new Set(['h1','h2','h3','h4','h5','h6']);
 const genId = () =>
     `hc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
 
-// "1. 내용" → 1 반환, 패턴 없으면 null
-const getSeqNum = (el) => {
-    const t = el?.textContent?.trim() || '';
-    const m = t.match(/^(\d{1,2})\.\s+\S/);
-    return m ? parseInt(m[1], 10) : null;
-};
-
 /**
- * HTML 내 기존 hcand 마커를 제거한다.
+ * HTML 내 기존 hcand 마커를 제거한다. (파일 내부 전용 — extractHeadingCandidates에서만 사용)
  * @param {string} html
  * @returns {string}
  */
-export function stripCandidateMarkers(html) {
+function stripCandidateMarkers(html) {
     if (!html || !html.includes('data-hcand-id')) return html;
     return html.replace(/ data-hcand-id="[^"]*"/g, '');
 }
@@ -102,10 +95,16 @@ export function extractHeadingCandidates(html) {
         if (!matched) {
             if (tag === 'li') return;
             const firstChild = el.children[0];
-            const isBoldOnly =
+            const isSingleBoldChild =
                 el.children.length === 1 &&
-                (firstChild?.tagName === 'STRONG' || firstChild?.tagName === 'B') &&
-                text.length <= 30;
+                (firstChild?.tagName === 'STRONG' || firstChild?.tagName === 'B');
+            // el.children은 element 자식만 세므로, "<strong>공지</strong>: 내용"처럼 볼드 옆에
+            // 평문 텍스트 노드가 더 있어도 위 조건만으로는 걸러지지 않는다. 볼드 엘리먼트 외의
+            // 직계 텍스트 노드가 공백이 아니면 "굵은 글씨만 있는" 단락이 아니므로 제외한다.
+            const hasExtraText = isSingleBoldChild && Array.from(el.childNodes).some(
+                n => n.nodeType === 3 && n.textContent.trim() !== ''
+            );
+            const isBoldOnly = isSingleBoldChild && !hasExtraText && text.length <= 30;
             if (!isBoldOnly) return;
             matched = { level: 'h3', label: '굵은 단락' };
         }

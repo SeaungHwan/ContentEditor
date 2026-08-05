@@ -11,7 +11,7 @@
  *   - 헤더 방향(tableType: row/default), 헤더 행/열 수(headerRows/headerCols)
  *   - TH 세로 방향(isVerticalHeader)
  *   - 색상 모드(tableIsColorMode, tableIsColorClassMode)
- *   - 표 내부 ul 클래스, ol 타입, 마커 유지 여부
+ *   - 표 내부 ul 클래스, ol 타입, ol/번호(span) 클래스명, 마커 유지 여부
  *   - 열 너비(ColWidthControl 컴포넌트)
  *   - 다음 인접 테이블 병합(isMergeTables)
  *
@@ -37,7 +37,9 @@ import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
 export default function TableEditModal({ onClose, onApply, globalConfig, layout, existingConfig, existingColWidths, fadeStyle }) {
     const [localConfig, setLocalConfig] = useState(existingConfig || { ...globalConfig });
-    const [colWidths, setColWidths] = useState(existingColWidths || ['auto']);
+    // ColWidthControl은 ['auto-calc']만 "자동 계산" 모드로 인식하고, 그 외 값은 전부 수동 입력값으로 취급한다.
+    // 전역 기본값(TableEditor.jsx의 초기 colWidths)과 동일하게 빈 문자열 1칸(= 지정 안 함)을 기본값으로 쓴다.
+    const [colWidths, setColWidths] = useState(existingColWidths || ['']);
     const [activeDropdown, setActiveDropdown] = useClickOutsideDropdown();
     const { dragStyle, handleDragStart } = useModalDrag();
 
@@ -99,6 +101,12 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
                         olDropdownKey="tableOlType"
                         olValue={localConfig.tableOlType}
                         onOlChange={(v) => updateLocalConfig('tableOlType', v)}
+                        olStyleHintTitle="이 표 내부 숫자 목록(ol)과 번호(span)에 적용할 클래스명 조합입니다."
+                        olClassValue={localConfig.tableOlClassName}
+                        onOlClassChange={(v) => updateLocalConfig('tableOlClassName', v)}
+                        numClassValue={localConfig.tableNumClassName}
+                        onNumClassChange={(v) => updateLocalConfig('tableNumClassName', v)}
+                        olStyleDropdownKey="tableOlStyle"
                         atteChecked={localConfig.tableUseAtteMarker}
                         onAtteChange={(v) => updateLocalConfig('tableUseAtteMarker', v)}
                         keepChecked={localConfig.tableKeepMarker}

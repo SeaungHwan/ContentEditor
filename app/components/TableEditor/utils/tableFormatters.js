@@ -16,8 +16,10 @@
  *   applyVerticalHeaders(table, isVerticalHeader)
  *     - isVerticalHeader=true: th 내용을 한 글자씩 분리해 사이에 <br class="vt-br"> 삽입.
  *       변환 전 원본 HTML을 data-origin-html 속성에 저장해 복원 가능하게 한다.
- *       colspan이 1보다 큰 th는 건너뜀.
+ *       colspan이 1보다 큰 th는 세로 변환 대상에서 건너뜀(병합된 헤더는 분할하지 않음).
  *     - isVerticalHeader=false: data-origin-html이 있으면 복원, 없으면 vt-br 클래스 br 제거.
+ *       colspan 여부와 무관하게 항상 시도한다 — 세로 변환 후 셀이 병합되어 colspan>1이 되어도
+ *       흔적(vt-br/data-origin-html)이 영구히 남지 않도록 복원 경로는 건너뛰지 않는다.
  *
  *   applyTableSemantics(table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths)
  *     - isWrapDiv에 따라 table을 div로 감싸거나 기존 div를 제거하고 wrapperClassName 적용.
@@ -80,9 +82,11 @@ export const applyColGroupHelper = (table, colWidths) => {
 export const applyVerticalHeaders = (table, isVerticalHeader) => {
     table.querySelectorAll('th').forEach(th => {
         const colspan = parseInt(th.getAttribute('colspan') || '1', 10);
-        if (colspan > 1) return;
 
         if (isVerticalHeader) {
+            // 병합된(colspan>1) 헤더는 세로 변환 대상에서만 제외한다. 복원(else) 쪽까지 건너뛰면,
+            // 세로 변환 후 셀 병합이 일어난 th는 원복할 방법이 없어 vt-br/data-origin-html이 영구히 남는다.
+            if (colspan > 1) return;
             if (!th.hasAttribute('data-origin-html')) th.setAttribute('data-origin-html', th.innerHTML);
             th.innerHTML = th.getAttribute('data-origin-html');
             th.querySelectorAll('br').forEach(br => br.remove());
@@ -147,6 +151,36 @@ export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null) => 
     }
 };
 
+// cell을 th(scope=scopeValue)로 승격하거나 td로 강등한다. td->th 변환 시 원본 셀에 이미 scope
+// 속성이 있어도(예: 이전 부분 변환, 수기 편집 HTML) attrs 복사에서 걸러내고 scopeValue로 마지막에
+// 지정해 덮어써지지 않게 한다(반대 방향은 기존에도 scope를 걸러내고 있었음 — 방향 간 비대칭 수정).
+const convertCellRole = (cell, scopeValue) => {
+    if (scopeValue) {
+        if (cell.tagName.toLowerCase() === 'td') {
+            const th = document.createElement('th');
+            while (cell.firstChild) th.appendChild(cell.firstChild);
+            for (const attr of cell.attributes) {
+                if (attr.name.toLowerCase() !== 'scope') th.setAttribute(attr.name, attr.value);
+            }
+            th.setAttribute('scope', scopeValue);
+            cell.replaceWith(th);
+        } else {
+            cell.setAttribute('scope', scopeValue);
+        }
+    } else {
+        if (cell.tagName.toLowerCase() === 'th') {
+            const td = document.createElement('td');
+            while (cell.firstChild) td.appendChild(cell.firstChild);
+            for (const attr of cell.attributes) {
+                if (attr.name.toLowerCase() !== 'scope') td.setAttribute(attr.name, attr.value);
+            }
+            cell.replaceWith(td);
+        } else {
+            cell.removeAttribute('scope');
+        }
+    }
+};
+
 export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths) => {
     applyWrapDiv(table, wClass, isWrapDiv);
 
@@ -201,29 +235,8 @@ export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, he
         allRows.forEach((row) => {
             const cells = Array.from(row.cells);
             cells.forEach((cell) => {
-                if (cell._logicalCol < finalLeftHeaderCols) {
-                    if (cell.tagName.toLowerCase() === 'td') {
-                        const th = document.createElement('th');
-                        th.setAttribute('scope', 'row');
-                        while (cell.firstChild) th.appendChild(cell.firstChild);
-                        for (const attr of cell.attributes) th.setAttribute(attr.name, attr.value);
-                        cell.replaceWith(th);
-                    } else {
-                        cell.setAttribute('scope', 'row');
-                    }
-                } else {
-                    if (cell.tagName.toLowerCase() === 'th') {
-                        const td = document.createElement('td');
-                        while (cell.firstChild) td.appendChild(cell.firstChild);
-                        for (const attr of cell.attributes) {
-                            if (attr.name.toLowerCase() !== 'scope') td.setAttribute(attr.name, attr.value);
-                        }
-                        cell.replaceWith(td);
-                    } else {
-                        cell.removeAttribute('scope');
-                    }
-                }
-                delete cell._logicalCol; 
+                convertCellRole(cell, cell._logicalCol < finalLeftHeaderCols ? 'row' : null);
+                delete cell._logicalCol;
             });
             newTbody.appendChild(row);
         });
@@ -238,9 +251,12 @@ export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, he
                 if (currentRowIndex >= allRows.length) break; 
                 let maxSpan = 1;
                 if (allRows[currentRowIndex]) {
-                    maxSpan = Math.max(...Array.from(allRows[currentRowIndex].cells).map(c => parseInt(c.getAttribute('rowspan')) || 1));
+                    // cells가 0개(빈 <tr>)면 Math.max(...[])가 -Infinity를 반환해 currentRowIndex가 NaN으로
+                    // 오염되고 이후 헤더 감지 전체가 무력화되므로, 빈 행이면 기본값 1을 그대로 사용한다.
+                    const spans = Array.from(allRows[currentRowIndex].cells).map(c => parseInt(c.getAttribute('rowspan')) || 1);
+                    if (spans.length > 0) maxSpan = Math.max(...spans);
                 }
-                currentRowIndex += maxSpan; 
+                currentRowIndex += maxSpan;
             }
             finalHeaderRowCount = Math.min(currentRowIndex, allRows.length);
         }
@@ -248,28 +264,7 @@ export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, he
         allRows.forEach((row, index) => {
             const target = index < finalHeaderRowCount ? newThead : newTbody;
             Array.from(row.cells).forEach(cell => {
-                if (index < finalHeaderRowCount) {
-                    if (cell.tagName.toLowerCase() === 'td') {
-                        const th = document.createElement('th');
-                        th.setAttribute('scope', 'col');
-                        while (cell.firstChild) th.appendChild(cell.firstChild);
-                        for (const attr of cell.attributes) th.setAttribute(attr.name, attr.value);
-                        cell.replaceWith(th);
-                    } else {
-                        cell.setAttribute('scope', 'col');
-                    }
-                } else {
-                    if (cell.tagName.toLowerCase() === 'th') {
-                        const td = document.createElement('td');
-                        while (cell.firstChild) td.appendChild(cell.firstChild);
-                        for (const attr of cell.attributes) {
-                            if (attr.name.toLowerCase() !== 'scope') td.setAttribute(attr.name, attr.value);
-                        }
-                        cell.replaceWith(td);
-                    } else {
-                        cell.removeAttribute('scope');
-                    }
-                }
+                convertCellRole(cell, index < finalHeaderRowCount ? 'col' : null);
             });
             target.appendChild(row);
         });

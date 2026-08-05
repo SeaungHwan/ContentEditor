@@ -27,8 +27,10 @@
  *       · td/th의 text-align → al/ar CSS 클래스로 변환(center는 기본이므로 제거)
  *       · class/style 없는 빈 <span> → unwrap
  *
- *   performCleanup(container)
+ *   performCleanup(container, numClass = 'num')
  *     - traverseAndClean 이후 구조적 찌꺼기를 최종 정리.
+ *     - numClass: ol li > span 번호 클래스명(설정 가능). 인접 span 병합 시 이 클래스를
+ *       가진 span은 서로 다른 li의 번호일 수 있으므로 병합 대상에서 제외한다.
  *     - 처리 내용:
  *       · td/th 내부 <p> → <br>로 변환 (줄바꿈 보존, bu_atte 클래스 p는 제외)
  *       · <b><b>, <span><span> 등 동일 태그 중첩 제거
@@ -190,11 +192,11 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
     }
 };
 
-const _mergeAdjacentInlines = (container) => {
+const _mergeAdjacentInlines = (container, numClass = 'num') => {
     Array.from(container.querySelectorAll('span, b, i, u, strong, em')).forEach(el => {
         if (!el.parentNode) return;
         const tagName = el.tagName.toLowerCase();
-        if (tagName === 'span' && el.classList.contains('num')) return;
+        if (tagName === 'span' && el.classList.contains(numClass)) return;
         const elClass = el.getAttribute('class') || '';
         const elStyle = el.getAttribute('style') || '';
         if (tagName === 'span' && !elClass && !elStyle) return;
@@ -223,7 +225,7 @@ const _mergeAdjacentInlines = (container) => {
     });
 };
 
-export const performCleanup = (container) => {
+export const performCleanup = (container, numClass = 'num') => {
 
     if (container.tagName === 'TD' || container.tagName === 'TH') {
         const pList = Array.from(container.querySelectorAll('p')).filter(p => !p.classList.contains('bu_atte'));
@@ -248,7 +250,7 @@ export const performCleanup = (container) => {
     });
 
     // Pass 2: 인접 동일 class/style 태그 병합
-    _mergeAdjacentInlines(container);
+    _mergeAdjacentInlines(container, numClass);
 
     // Pass 3: 빈 인라인 태그 제거 (Pass 1과 동일 컬렉션 재사용, parentNode로 DOM 잔류 여부 확인)
     _inlines.forEach(node => {
@@ -304,8 +306,8 @@ export const performCleanup = (container) => {
 
 // traverseAndClean 후 인라인 태그(span/b/i/u/strong/em) 재병합
 // (정규화 전 스타일 순서/속성 차이로 performCleanup에서 실패한 경우를 커버)
-export const mergeAdjacentColorSpans = (container) => {
-    _mergeAdjacentInlines(container);
+export const mergeAdjacentColorSpans = (container, numClass = 'num') => {
+    _mergeAdjacentInlines(container, numClass);
 };
 
 // element 앞에서 count 글자를 TreeWalker로 순서대로 제거한다.

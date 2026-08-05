@@ -118,6 +118,13 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
                         olValue={localConfig.tableOlType}
                         onOlChange={(v) => updateConfig('tableOlType', v)}
                         olGuide={isGuideMode ? GUIDE_MESSAGES.classOlConfig : undefined}
+                        olStyleHintTitle="표 내부 숫자 목록(ol)과 번호(span)에 적용할 클래스명 조합입니다."
+                        olClassValue={localConfig.tableOlClassName}
+                        onOlClassChange={(v) => updateConfig('tableOlClassName', v)}
+                        numClassValue={localConfig.tableNumClassName}
+                        onNumClassChange={(v) => updateConfig('tableNumClassName', v)}
+                        olStyleDropdownKey="tableOlStyle"
+                        olStyleGuide={isGuideMode ? GUIDE_MESSAGES.classOlStyleConfig : undefined}
                         atteChecked={localConfig.tableUseAtteMarker}
                         onAtteChange={(v) => updateConfig('tableUseAtteMarker', v)}
                         atteGuide={isGuideMode ? GUIDE_MESSAGES.atteMarker : undefined}
