@@ -33,21 +33,6 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
                 </div>
 
                 <div className={layout.modalBody}>
-                    <div className={layout.presetSaveRow}>
-                        <input
-                            type="text"
-                            className={`Inp ${layout.presetInput}`}
-                            placeholder="프리셋 이름"
-                            value={newName}
-                            onChange={e => { setNewName(e.target.value); setError(''); }}
-                            onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                        />
-                        <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleSave}>
-                            저장
-                        </button>
-                    </div>
-                    {error && <span className={layout.presetError}>{error}</span>}
-
                     {presets.length === 0 ? (
                         <span className={layout.presetEmpty}>저장된 프리셋이 없습니다.</span>
                     ) : (
@@ -55,7 +40,7 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
                             {presets.map(p => (
                                 <div key={p.name} className={layout.presetRow}>
                                     <span className={layout.presetName}>
-                                        {p.locked && <i className="ri-lock-fill" style={{ fontSize: '0.65rem', color: '#f59e0b', marginRight: '0.25rem' }} />}
+                                        {p.locked && <i className={`ri-lock-fill ${layout.presetLockIcon}`} />}
                                         {p.name}
                                     </span>
                                     <div className={layout.presetActions}>
@@ -63,8 +48,8 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
                                             적용
                                         </button>
                                         {!p.locked && (
-                                            <button type="button" className={`${layout.cancelBtn} ${layout.presetDelBtn}`} onClick={() => onDelete(p.name)}>
-                                                삭제
+                                            <button type="button" className={layout.presetDelBtn} onClick={() => onDelete(p.name)} title="삭제">
+                                                <i className="ri-delete-bin-6-line" />
                                             </button>
                                         )}
                                     </div>
@@ -72,6 +57,24 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
                             ))}
                         </div>
                     )}
+
+                    <div className={layout.presetSaveSection}>
+                        <span className={layout.modalLabelSpan}>현재 설정을 새 프리셋으로 저장</span>
+                        <div className={layout.presetSaveRow}>
+                            <input
+                                type="text"
+                                className={layout.presetInput}
+                                placeholder="프리셋 이름"
+                                value={newName}
+                                onChange={e => { setNewName(e.target.value); setError(''); }}
+                                onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
+                            />
+                            <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleSave}>
+                                저장
+                            </button>
+                        </div>
+                        {error && <span className={layout.presetError}>{error}</span>}
+                    </div>
                 </div>
             </div>
         </div>

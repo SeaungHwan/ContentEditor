@@ -179,6 +179,7 @@
 .selectInp::placeholder {color: #555 !important;font-size: 0.7rem !important; font-weight: 500;}
 .selectInp2::placeholder {color: #555 !important;font-size: 0.7rem !important; font-weight: 500;}
 .selectInp.tbl {max-width: 7.65rem !important;}
+.selectInp.olList {max-width: 6rem !important;}
 .selectInp + i {content:''; position: absolute; top:50%; right:0.25rem; transform: translateY(-50%); font-size: 0.8rem; color:#555; cursor: pointer;}
 .configSection {display: flex; flex-direction: column; flex-wrap: wrap; gap: 1rem; background-color: #fff; border-radius: 0.5rem; padding: 1.25rem 1rem; border: 1px solid #ddd;}
 .configSection span {color:#666; letter-spacing: -2%; font-size: 0.7rem; font-weight: 500;}
@@ -205,7 +206,7 @@
 
 /* 인풋 */
 input.numInp {max-width: 4.2rem !important; padding: 0 0.75rem !important}
-input.Inp {max-width: 3.2rem; height:1.8rem; font-size: 0.7rem; padding:0 0.5rem ;line-height: 1.2;border-radius: 0.3rem;  border: 1px solid #d4d4d4; background-color: #ffffff;color: #000;outline: none;transition: all 0.2s ease-in-out;}
+input.Inp {max-width: 3.2rem; height:1.8rem; font-size: 0.7rem; padding:0 1rem 0 0.5rem ;line-height: 1.2;border-radius: 0.3rem;  border: 1px solid #d4d4d4; background-color: #ffffff;color: #000;outline: none;transition: all 0.2s ease-in-out;}
 input.Inp + input.Inp {margin-left:0.2rem}
 input.Inp::placeholder {color: #999999; letter-spacing: -2%; font-size: 0.65rem;}
 input.Inp:hover {border-color: #a1a1a6; }
@@ -305,17 +306,26 @@ input.Inp:focus {border-color: #007AFF; box-shadow: 0 0 0 4px rgba(0, 122, 255, 
 .tocToggleBadge {display: inline-flex; align-items: center; justify-content: center; min-width: 1rem; height: 1rem; background: #2563eb; color: #fff; border-radius: 0.5rem; font-size: 0.55rem; font-weight: 700; padding: 0 0.15rem; margin-top: 0.15rem; writing-mode: horizontal-tb;}
 
 /* 프리셋 모달 */
+.presetEmpty {color: #999; font-size: 0.75rem;}
+.presetList {display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; max-height: 14rem; overflow-y: auto;}
+.presetRow {display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.5rem 0.65rem; background: #fff; border-radius: 0.4rem; border: 1px solid #eee; transition: border-color 0.2s, box-shadow 0.2s;}
+.presetRow:hover {border-color: #c7d2fe; box-shadow: 0 1px 4px rgba(37, 99, 234, 0.08);}
+.presetName {display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 0.78rem; font-weight: 500; color: #333;}
+.presetLockIcon {font-size: 0.65rem; color: #aaa; margin-right: 0.35rem;}
+.presetActions {display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0;}
+.presetSmBtn {padding: 0.25rem 0.7rem !important; font-size: 0.68rem !important;}
+.presetDelBtn {display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; border: none; background: transparent; color: #bbb; border-radius: 0.3rem; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;}
+.presetDelBtn:hover {background: #fdeaea; color: #e53e3e;}
+
+/* 새 프리셋 저장 영역 — 목록과 시각적으로 구분되는 보조 섹션 */
+.presetSaveSection {display: flex; flex-direction: column; gap: 0.5rem; padding-top: 0.9rem; border-top: 1px solid #eee;}
 .presetSaveRow {display: flex; gap: 0.4rem; align-items: center;}
-.presetInput {flex: 1; min-width: 0; height: 1.8rem; font-size: 0.75rem; padding: 0 0.75rem; border-radius: 0.3rem; border: 1px solid #d4d4d4; outline: none; transition: border-color 0.2s;}
+.presetInput {flex: 1; min-width: 0; height: 1.8rem; box-sizing: border-box; font-size: 0.75rem; padding: 0 0.75rem; border-radius: 0.3rem; border: 1px solid #d4d4d4; outline: none; transition: border-color 0.2s;}
 .presetInput:focus {border-color: #2563ea; box-shadow: 0 0 0 3px rgba(37,99,234,0.12);}
 .presetError {color: #e53e3e; font-size: 0.7rem;}
-.presetEmpty {color: #999; font-size: 0.75rem;}
-.presetList {display: flex; flex-direction: column; gap: 0.4rem; max-height: 12rem; overflow-y: auto; margin-top: 0.75rem;}
-.presetRow {display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: #fff; border-radius: 0.4rem; border: 1px solid #eee;}
-.presetName {font-size: 0.78rem; font-weight: 500;}
-.presetActions {display: flex; gap: 0.3rem; flex-shrink: 0;}
-.presetSmBtn {padding: 0.2rem 0.6rem !important; font-size: 0.68rem !important;}
-.presetDelBtn {padding: 0.2rem 0.6rem !important; font-size: 0.68rem !important; color: #e53e3e !important;}
+/* applyBtn은 다른 곳(모달 푸터 등)에서도 쓰이는 공용 버튼이라 padding만으로 높이가 정해지는데,
+   presetInput과 나란히 놓일 땐 높이가 안 맞아 보이므로 이 행 안에서만 명시적으로 맞춰준다. */
+.presetSaveRow .applyBtn {height: 1.8rem; box-sizing: border-box; padding: 0 0.9rem; display: flex; align-items: center; justify-content: center; font-size: 0.75rem;}
 
 /* 에디터 + TOC 래퍼 */
 .editorArea {display: flex; gap: 0.5rem; flex: 1; min-height: 0;}
@@ -362,8 +372,9 @@ input.Inp:focus {border-color: #007AFF; box-shadow: 0 0 0 4px rgba(0, 122, 255, 
 .modalPop2 {width:95%}
 }
 @media (max-width:768px) {
-   
+
 .modalContentBox {width: 90%;}
+.presetList {grid-template-columns: 1fr;}
 }
 @media (max-width:640px) {
     .mgl5 {margin-left: 0;}

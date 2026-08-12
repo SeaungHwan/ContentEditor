@@ -1,5 +1,5 @@
 /*
- * [ListSettingsSection.jsx] "리스트" 설정 섹션 (ul 드롭다운 + ol 마커 드롭다운 + ol 스타일 드롭다운 + 옵션 체크박스)
+ * [ListSettingsSection.jsx] "리스트" 설정 섹션 (ul 드롭다운 + ol 드롭다운 + ol 스타일 드롭다운 + 옵션 체크박스)
  *
  * TableEditModal(표 내부), GlobalTableConfigModal(표 내부), ContentConfigModal(본문 텍스트)에서
  * 필드 키 접두사만 다르고 구조가 동일하던 UI를 공통 추출한 것.
@@ -76,7 +76,7 @@ export default function ListSettingsSection({
                 </div>
 
                 <div className={`${layout.flexCol} ${layout.gap06}`}>
-                    <span className={layout.modalLabelSpan}>ol 마커</span>
+                    <span className={layout.modalLabelSpan}>ol</span>
                     <div className={`${layout.relative} ${olGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={olGuide || undefined} data-dropdown="true">
                         <input className={`${layout.Inp} ${layout.selectInp}`} type="text" readOnly
                             value={olArray.length > 0 ? olArray.map(val => OL_OPTIONS.find(opt => opt.value === val)?.label).filter(Boolean).join(', ') : ''}
@@ -100,9 +100,9 @@ export default function ListSettingsSection({
 
                     {onOlClassChange && onNumClassChange && (
                         <>
-                            <span className={layout.modalLabelSpan} title={olStyleHintTitle}>ol 스타일</span>
                             <div className={`${layout.relative} ${olStyleGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={olStyleGuide || undefined} data-dropdown="true">
-                                <input className={`${layout.Inp} ${layout.selectInp} ${layout.tbl}`} type="text" readOnly
+                                <input className={`${layout.Inp} ${layout.selectInp} ${layout.olList}`} type="text" readOnly
+                                    title={olStyleHintTitle}
                                     value={matchedOlStyle ? matchedOlStyle.label : `${olClassValue || ''} / ${numClassValue || ''}`}
                                     onClick={() => setActiveDropdown(olStyleDropdownKey)}
                                 />

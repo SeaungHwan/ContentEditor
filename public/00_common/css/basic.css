@@ -812,7 +812,7 @@ br + a[class^="btn_"] { margin-top:0.5rem; }
 /* Title */
 .tit-st{ font-weight: 700; line-height: 1.5; margin-bottom: 0.25rem;}
 .tit-st.section{ font-size: calc(var(--title-size) * 0.8); position: relative; padding-left: calc(var(--title-size) * 0.9); }
-.tit-st.section::before { position: absolute; content: ""; left: 0; top: calc(var(--title-size) * 0.25); background: url('/images/common/con_com/tit-sec.png')no-repeat center center; width: calc(var(--title-size) * 0.7); height: calc(var(--title-size) * 0.7); background-size: contain; }
+.tit-st.section::before { position: absolute; content: ""; left: 0; top: calc(var(--title-size) * 0.25); background: url('../images/tit-sec.png')no-repeat center center; width: calc(var(--title-size) * 0.7); height: calc(var(--title-size) * 0.7); background-size: contain; }
 .tit-st.contents{ font-size: calc(var(--title-size) * 0.6); color: var(--color-primary); }
 .tit-st.unit{ font-size: calc(var(--title-size) * 0.5); }
 .tit-st.item{ font-size: calc(var(--title-size) * 0.425); }
@@ -853,7 +853,7 @@ br + a[class^="btn_"] { margin-top:0.5rem; }
 .bu-st1:not(.list):before,
 .bu-st1.list > li:before{ width: 0.3rem; height: 0.3rem; border-radius: 50%; background: var(--color-primary); margin-top: -0.2rem;}
 .bu-st2:not(.list):before,
-.bu-st2.list > li:before{ background: url('/images/common/con_com/bu-st-02.png')no-repeat center bottom 0.3rem; width: 0.5rem; height: 0.85rem; }
+.bu-st2.list > li:before{ background: url('../images/bu-st-02.png')no-repeat center bottom 0.3rem; width: 0.5rem; height: 0.85rem; }
 .bu-st3:not(.list):before,
 .bu-st3.list > li:before{ width: 0.35rem; height: 0.35rem; border-radius: 50%; background: #fff; border: 2px solid #444; margin-bottom: 0.15rem; }
 .bu-st4:not(.list):before,
