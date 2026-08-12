@@ -44,7 +44,7 @@
  *     - Phase 4: 잔여 Ignore span unwrap
  */
 
-import { MARKER_TYPES, EXCLUDE_MARKER_REGEXES, HWP_CHAR_MAP, HWP_CHAR_REGEX, UL_NONE_VALUE, convertCircleToArabic } from './constants';
+import { MARKER_TYPES, EXCLUDE_MARKER_REGEXES, HWP_CHAR_MAP, HWP_CHAR_REGEX, UL_NONE_VALUE, RE_WHITESPACE, convertCircleToArabic } from './constants';
 import { removeLeadingCharsFromDOM } from './htmlCleaners';
 
 
@@ -221,6 +221,18 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
     if (cell.querySelector('br')) normalizeBrBlocks(cell);
 
     const childNodes = Array.from(cell.childNodes);
+    // 루프가 진행되며 앞선 노드들의 마커 문자가 지워지므로(예: "1. " 제거), 나중에 다른 decimal-dot
+    // 형제가 있는지 검사할 때 이미 처리된 노드는 더 이상 마커로 매칭되지 않는다. 마커 제거 전 원본
+    // 텍스트를 미리 스냅샷해 그 검사가 처리 순서와 무관하게 항상 정확히 판단하도록 한다.
+    const originalTexts = childNodes.map(n => n.textContent || '');
+    // decimal-dot 제목 후보 판단 시 "다른 decimal-dot 형제가 있는지"를 문서 전체가 아니라
+    // 같은 섹션(heading 또는 법령 섹션 제목으로 구분되는 범위) 안에서만 찾도록 경계를 표시해둔다.
+    // 경계가 없으면 문서 어디에든 번호형 텍스트가 하나라도 있다는 이유로 무관한 섹션의
+    // 단독 "N. 제목"까지 리스트로 편입되는 문제가 생긴다.
+    const isSectionBoundary = (node, text) => {
+        if (node.nodeType === 1 && /^h[1-6]$/i.test(node.tagName)) return true;
+        return /^제\d+[장편조관절항호]/.test((text || '').replace(RE_WHITESPACE, ''));
+    };
     const rootNodes = [];
     const contextStack = [];
     let lastLi = null;
@@ -443,9 +455,17 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
             // - 같은 블록에 다른 decimal-dot 항목(길이 무관)이 있으면 → 연속 목록의 일부
             // - 없으면 → 제목 후보로 보존 (<p>)
             if (markerType === 'decimal-dot' && isOuterText && rawText.trim().length <= 15) {
-                const hasAnyOtherDecimalDot = childNodes.some((n, j) => {
-                    if (j === i) return false;
-                    return /^\d{1,2}\.\s+\S/.test((n.textContent || '').trim());
+                let rangeStart = 0;
+                for (let j = i - 1; j >= 0; j--) {
+                    if (isSectionBoundary(childNodes[j], originalTexts[j])) { rangeStart = j + 1; break; }
+                }
+                let rangeEnd = originalTexts.length - 1;
+                for (let j = i + 1; j < originalTexts.length; j++) {
+                    if (isSectionBoundary(childNodes[j], originalTexts[j])) { rangeEnd = j - 1; break; }
+                }
+                const hasAnyOtherDecimalDot = originalTexts.some((t, j) => {
+                    if (j === i || j < rangeStart || j > rangeEnd) return false;
+                    return /^\d{1,2}\.\s+\S/.test(t.trim());
                 });
                 if (!hasAnyOtherDecimalDot) {
                     lastLi = null;

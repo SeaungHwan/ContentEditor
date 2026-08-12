@@ -35,6 +35,7 @@
 import { getDOMParser } from './utils/htmlCleaners';
 import { processTextContentNormal, processTextContentColor } from './utils/textProcessor';
 import { processTableOnlyNormal, processTableOnlyColor } from './utils/tableProcessor';
+import { applyNestedClassesHelper } from './utils/listExtractors';
 import { convertCircleToArabic, MARKER_TYPES, EXCLUDE_MARKER_REGEXES, RE_WHITESPACE } from './utils/constants';
 
 export { updateStylesOnly } from './utils/styleUpdater';
@@ -128,6 +129,42 @@ const _findAncestorListByMarker = (startList, rootList, markerType) => {
         }
     }
     return null;
+};
+
+// wrapperLis(번호 없는 래퍼 li들, 예: "행정안전부...") 안에 번호형 하위 리스트가 숨어 있으면
+// 그 항목들을 promoteTarget이 찾아주는 리스트로 승격시키고, 남은 래퍼 li들은 새 하위 리스트로
+// 감싸 anchorLi(예: 테이블이 있던 li) 안에 중첩시킨다. 표가 리스트 흐름을 끊어 마커 컨텍스트가
+// 리셋되면서 "행정안전부"류 비번호 항목이 통째로 형제 li가 되어버리고, 그 안의 번호(2,3,4...)가
+// 한 단계 깊이 갇히는 문제를 바로잡는다. 승격 대상이 없으면 false를 반환해 호출부가 기존 동작
+// (그대로 두기)을 유지하게 한다.
+const _extractPromotableAndNest = (wrapperLis, wrapperTagName, anchorLi, baseListClassName, promoteTarget) => {
+    const toPromote = [];
+    wrapperLis.forEach(li => {
+        Array.from(li.children)
+            .filter(c => c.tagName === 'OL' || c.tagName === 'UL')
+            .forEach(sub => {
+                const firstSubLi = Array.from(sub.children).find(c => c.tagName === 'LI');
+                const subMarker = firstSubLi && _detectMarkerType(firstSubLi.textContent || '');
+                if (!subMarker) return;
+                const toExtract = Array.from(sub.children)
+                    .filter(c => c.tagName === 'LI' && _detectMarkerType(c.textContent || '') === subMarker);
+                if (!toExtract.length) return;
+                toExtract.forEach(item => { sub.removeChild(item); toPromote.push({ item, subMarker }); });
+                if (!sub.querySelector('li')) sub.remove();
+            });
+    });
+    if (!toPromote.length) return false;
+
+    // 래퍼 li들을 감쌀 새 하위 리스트 클래스: list_st1 → list_st2 (deepestList 기준 한 단계 아래)
+    const cm = (baseListClassName || '').match(/^(.*?)(\d+)$/);
+    const wrapClass = cm ? `${cm[1]}${parseInt(cm[2], 10) + 1}` : (baseListClassName || '');
+    const wrapList = document.createElement(wrapperTagName);
+    if (wrapClass) wrapList.className = wrapClass;
+    wrapperLis.forEach(li => wrapList.appendChild(li));
+    anchorLi.appendChild(wrapList);
+
+    toPromote.forEach(({ item, subMarker }) => promoteTarget(subMarker).appendChild(item));
+    return true;
 };
 
 const isMeaninglessNode = (n) => {
@@ -308,17 +345,24 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                         const firstLiOfB = Array.from(afterEl.children).find(c => c.tagName === 'LI');
                         const bMarker = _detectMarkerType((firstLiOfB || {}).textContent || '');
                         const deepLastMarker = _detectMarkerType((deepLis[deepLis.length - 1] || {}).textContent || '');
+                        const findPromoteTarget = (markerType) => (markerType === deepLastMarker
+                            ? deepestList
+                            : (_findAncestorListByMarker(deepestList, listA, markerType) || listA));
 
-                        let target = null;
-                        if (bMarker && bMarker === deepLastMarker) {
-                            target = deepestList; // 같은 마커 타입 → 최하위 리스트에 병합
-                        } else if (bMarker) {
-                            target = _findAncestorListByMarker(deepestList, listA, bMarker); // 조상 탐색
+                        if (bMarker) {
+                            // afterEl의 첫 li가 직접 번호형 마커 → 같은 타입이면 최하위 리스트에, 다르면 조상 탐색
+                            const target = findPromoteTarget(bMarker);
+                            Array.from(afterEl.children).forEach(li => target.appendChild(li));
+                            afterEl.remove();
+                        } else {
+                            // afterEl의 첫 li가 번호 없는 래퍼(예: "행정안전부...")인 경우:
+                            // 표 때문에 마커 컨텍스트가 끊겨 내부의 번호형 항목(2,3,4...)이 이 래퍼 밑에
+                            // 갇혀버린 상태일 수 있으므로, 있으면 승격시키고 래퍼는 lastLi(표가 있던 li)
+                            // 안에 중첩시킨다. 승격할 게 없으면(정말 단순한 비번호 항목) 그대로 둔다.
+                            const bArr = Array.from(afterEl.children).filter(c => c.tagName === 'LI');
+                            const promoted = _extractPromotableAndNest(bArr, afterEl.tagName, lastLi, listA.className, findPromoteTarget);
+                            if (promoted) afterEl.remove();
                         }
-                        if (!target) target = listA; // fallback
-
-                        Array.from(afterEl.children).forEach(li => target.appendChild(li));
-                        afterEl.remove();
                     }
 
                     children = Array.from(resultWrapper.children); // 변경 후 갱신
@@ -413,6 +457,15 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                 if (!changed) break;
             }
         })();
+
+        // 위 두 재배치 패스가 리스트 항목을 다른 깊이로 옮긴 뒤에도, 옮겨진 li가 원래 속했던
+        // (표 때문에 끊겼던) 처리 단위에서 계산된 list_stN 클래스를 그대로 들고 있을 수 있다.
+        // 최종 구조를 기준으로 depth를 다시 계산해 resultWrapper 바로 아래 리스트들의
+        // list_stN 클래스를 새로 매긴다(표 셀 내부 리스트는 resultWrapper의 직계 자식이 아니므로
+        // 영향받지 않는다).
+        if (Array.from(resultWrapper.children).some(c => c.tagName === 'UL' || c.tagName === 'OL')) {
+            applyNestedClassesHelper(resultWrapper, config.ulClassName, config.listStartFrom2 ? 1 : 0, config.olClassName);
+        }
 
         resultWrapper.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6').forEach(el => {
             if (el.classList?.contains('box-st') || el.classList?.contains('box_st2')) return;
