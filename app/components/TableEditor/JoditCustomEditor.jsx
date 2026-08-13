@@ -64,7 +64,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
     const initialHtmlRef = useRef('');
 
     useEffect(() => {
-        import('js-beautify').then(mod => { htmlBeautifyRef.current = mod.html; });
+        import('js-beautify/js/src/html/index.js').then(mod => { htmlBeautifyRef.current = mod.default || mod; });
     }, []);
 
     useEffect(() => {
