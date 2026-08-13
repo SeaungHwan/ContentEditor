@@ -922,3 +922,58 @@ ol[class*='li_w'] {overflow: hidden;}
 .li_w30 > li {float: left; width: 33%;}
 .li_w25 > li {float: left; width: 25%;}
 .li_w20 > li {float: left; width: 20%;}
+
+/* Text */
+.txt-st { font-size: calc(var(--txt-size) * 0.9); }
+.txt-st > i{ font-weight: 400 !important;} 
+.txt-st.laed{ font-size: calc(var(--txt-size) * 0.95); font-weight: 500; }
+.txt-st.contents{ font-size: calc(var(--txt-size) * 1.2); color: var(--color-primary); }
+.txt-st.unit{ font-size: calc(var(--txt-size) * 0.9); }
+.txt-st.item{ font-size: calc(var(--txt-size) * 0.85); }
+.txt-st.link{ display: inline-block; padding:0.04rem 0.3rem; margin:0 0.15rem; background:var(--color-tertiary); color:var(--color-primary); font-weight: 600; border-radius: 2rem; font-size: calc(var(--txt-size) * 0.85); }
+.txt-st.info{ padding-left: calc(var(--txt-margin) * 0.9); }
+.txt-st.info:before{content:"\EE58"; display: inline-block; margin-right: calc(var(--txt-margin) * 0.4); margin-left: calc(var(--txt-margin) * -0.9); font-family: 'remixicon'; font-weight: 400; color: var(--color-primary); }
+
+/* Box */
+/* Box Size */
+.box-st.slim{ 
+	--box-inr-padding: 0.8rem 1.2rem;
+}
+/* Box Color*/
+* + .box-st{ margin-top: calc(var(--margin-default)/2);}
+.box-st{ padding:var(--box-inr-padding); border-radius: var(--box-radius); border:1px solid #ccc; font-size: calc(var(--txt-size) * 0.9); line-height: 1.5;}
+.box-st.emp{ border-color: var(--color-primary); background: var(--color-tertiary); }
+.box-st.info{ background:var(--color-tertiary); border: none; border-radius: 0.4rem; }
+
+/* Box Intro(icon) */
+.box-st.intro{ display: flex;  gap: 2rem;
+	--box-inr-padding: 2rem;
+	border-radius: 2rem;
+	position: relative;
+	border: none;
+}
+.box-st.intro::before{
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: 2rem;
+	padding: 4px;
+	background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+	-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+	-webkit-mask-composite: xor;
+	mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+	mask-composite: exclude;
+	clip-path: inset(0 0 calc(100% - 4.5rem) 0);
+	pointer-events: none;
+}
+.box-st.intro .ico{ display: flex; align-items: center; justify-content: center; width: 5rem; height: 5rem; border-radius: 0.5rem; background: #fff; }
+.box-st.intro .inner{ flex: 1;} 
+.box-st.intro .ico img{ max-width: 60%; max-height: 60%; }
+.box-st.intro .tit-st{ color:var(--color-primary); font-weight: 700; font-size: calc(var(--title-size) * 0.6); margin-bottom: 0.4rem;}
+.box-st.intro .txt-st.lead{ color:#000; font-weight: 700; font-size: calc(var(--title-size) * 0.5); margin-bottom: 0.25rem;}
+
+/* Box icon color */
+.box-st .ico .stroke-primary { stroke: var(--color-primary);}
+.box-st .ico .stroke-accent { stroke: var(--color-accent);}
+.box-st .ico .fill-tertiary { fill: var(--color-tertiary);}
+.box-st .ico .fill-white { fill: #fff;}
