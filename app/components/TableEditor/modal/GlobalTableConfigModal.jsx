@@ -11,6 +11,9 @@
  *   - 색상 모드 및 클래스 변환 여부
  *   - 표 내부 ul/ol 설정, 열 너비(ColWidthControl)
  *
+ * 링크(linkClassName)/메일(mailClassName) 클래스명은 텍스트/표 공통 설정이라
+ * 이 모달이 아닌 EtcConfigModal(기타 설정)에서 관리한다.
+ *
  * 가이드 모드:
  *   - isGuideMode=true이면 각 설정 항목에 data-guide 말풍선 표시.
  *   - 모달 내부에서 가이드 모드를 토글할 수 있는 버튼 포함.

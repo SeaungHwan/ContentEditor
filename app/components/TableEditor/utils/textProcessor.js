@@ -26,6 +26,7 @@
  *            매칭 시 h3/h4/h5로 변환하고 (keepMarker=false이면) 마커 문자 제거.
  *            단, 제n장/편/조, 로마숫자(Ⅰ.) 형태는 마커 제거에서 제외(isPreservedMarker).
  *       6. traverseAndClean: 허용 태그/속성 최종 정제 및 색상 클래스 변환.
+ *          이메일/링크(a)에는 config.linkClassName/mailClassName(기본 bu_link/bu_mail)을 적용.
  */
 
 import { traverseAndClean, performCleanup, removeLeadingCharsFromDOM, mergeAdjacentColorSpans } from './htmlCleaners';
@@ -36,10 +37,12 @@ import { UL_NONE_VALUE } from './constants';
 const processTextContentBase = (containerDOM, config, isColorMode, isColorClassMode) => {
     if (!containerDOM || !config) return;
 
-    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, olClassName, numClassName, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2 } = config;
+    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, olClassName, numClassName, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2, linkClassName, mailClassName } = config;
     const noUl = ulClass === UL_NONE_VALUE;
     const noAtte = useAtteMarker === false;
     const numClass = (numClassName && numClassName.trim()) ? numClassName.trim() : 'num';
+    const linkClass = (linkClassName && linkClassName.trim()) || 'bu_link';
+    const mailClass = (mailClassName && mailClassName.trim()) || 'bu_mail';
 
     // 1. 셀 내용 처리 및 클래스 적용
     processMsoLists(containerDOM);
@@ -117,7 +120,7 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
         });
 
     // 3. 최종 클린업
-    traverseAndClean(containerDOM, isColorMode, isColorClassMode);
+    traverseAndClean(containerDOM, isColorMode, isColorClassMode, linkClass, mailClass);
 
     // 4. traverseAndClean이 색상을 정규화한 뒤 동일 class/style의 인접 span을 재병합
     //    (정규화 전 스타일 순서/속성 차이로 performCleanup에서 병합 실패한 span 처리)

@@ -23,7 +23,7 @@
  *     - 닫을 때 fade-out 완료 후 데이터도 초기화해 잔여 상태 방지
  *
  * EXCLUSIVE_MODALS:
- *   globalTableConfig, contentConfig, tableEdit, preview, presets 는 동시에 하나만 열릴 수 있다.
+ *   globalTableConfig, contentConfig, etcConfig, tableEdit, preview, presets 는 동시에 하나만 열릴 수 있다.
  */
 "use client";
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -32,12 +32,12 @@ const FADE_DURATION = 300;
 
 const INITIAL_MODALS = {
     preview: false, guide: false,
-    globalTableConfig: false, contentConfig: false,
+    globalTableConfig: false, contentConfig: false, etcConfig: false,
     tableEdit: false, presets: false,
 };
 
 // 동시에 하나만 열릴 수 있는 모달 그룹
-const EXCLUSIVE_MODALS = ['globalTableConfig', 'contentConfig', 'tableEdit', 'preview', 'presets'];
+const EXCLUSIVE_MODALS = ['globalTableConfig', 'contentConfig', 'etcConfig', 'tableEdit', 'preview', 'presets'];
 
 const INITIAL_TABLE_EDIT_DATA = { html: '', tempId: '', existingConfig: null, existingColWidths: null };
 

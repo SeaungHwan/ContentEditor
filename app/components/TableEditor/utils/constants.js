@@ -33,6 +33,9 @@
  *     OL_OPTIONS               : ol 형식 선택 옵션 목록 (숫자, 한글, 원형 등)
  *     TIT_OPTIONS              : 제목(h3~h5) 감지 패턴 선택 옵션 목록
  *     TARGET_COLORS            : color → pc_xxx 클래스 매핑용 기준 색상 목록 (RGB)
+ *     BOX_CLASS_SUGGESTIONS    : 단일 셀 표(box) 클래스명 자동완성 후보 목록
+ *     LINK_CLASS_SUGGESTIONS   : 자동 링크(a) 클래스명 자동완성 후보 목록
+ *     MAIL_CLASS_SUGGESTIONS   : 이메일 링크(a) 클래스명 자동완성 후보 목록
  *     GUIDE_MESSAGES           : 가이드 모드에서 각 버튼/영역에 표시할 안내 문자열 맵
  */
 
@@ -183,6 +186,15 @@ export const TIT_CLASS_SUGGESTIONS = [
     { label: 'tit2', value: 'tit2' },
     { label: 'tit3', value: 'tit3' },
 ];
+export const BOX_CLASS_SUGGESTIONS = [
+    { label: 'box_st2', value: 'box_st2' },
+];
+export const LINK_CLASS_SUGGESTIONS = [
+    { label: 'bu_link', value: 'bu_link' },
+];
+export const MAIL_CLASS_SUGGESTIONS = [
+    { label: 'bu_mail', value: 'bu_mail' },
+];
 export const OL_OPTIONS = [
     { value: 'decimal-dot', label: '숫자: 1.' },
     { value: 'hangul-dot', label: '한글: 가.' },
@@ -232,6 +244,7 @@ export const GUIDE_MESSAGES = {
     editorConfig: `[에디터]\n한글(HWP), 엑셀, 워드 등에 있는 표를 복사하여\n아래 빈 화면에 붙여 넣습니다.\n'</>' 아이콘을 눌러 코드를 직접 수정할 수 있습니다.`,
     contBtn: `[컨텐츠 설정]\n컨텐츠의 타이틀, 리스트를 설정 합니다.`,
     allTableBtn: `[테이블 전역 설정]\n테이블 전역 설정을 합니다.`,
+    etcBtn: `[기타 설정]\n박스, 링크, 메일 클래스명을 설정합니다.\n(텍스트/표 공통 적용)`,
     preview: `[미리보기]\n컨텐츠 내용을 미리 볼 수 있습니다.`,
     copyBtn: `완성된 HTML 코드를\n클립보드에 복사합니다.`,
     removeBtn: `에디터 안의 내용을\n모두 지웁니다.`,
@@ -252,4 +265,7 @@ export const GUIDE_MESSAGES = {
     tit2: `[제목]\n타이틀2(h4)의 범위 및 클래스명을 지정합니다.`,
     tit3: `[제목]\n타이틀3(h5)의 범위 및 클래스명을 지정합니다.`,
     color: `[색상모드]\n체크시 = 클래스 pc_색상\n해제시 = style ="color:색상"\n범위 값에 없는 색상은 전부 style처리`,
+    classBoxConfig: `[박스 클래스 설정]\n셀이 1개뿐인 표를 텍스트 박스로 변환할 때\n적용할 클래스명을 지정합니다.`,
+    classLinkConfig: `[링크 클래스 설정]\n일반 링크(a) 및 URL 자동 변환 링크에\n적용할 클래스명을 지정합니다.`,
+    classMailConfig: `[메일 링크 클래스 설정]\n이메일 주소를 링크로 자동 변환할 때\n적용할 클래스명을 지정합니다.`,
 };

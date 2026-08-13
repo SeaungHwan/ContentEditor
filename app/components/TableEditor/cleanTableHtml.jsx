@@ -9,7 +9,7 @@
  * 주요 함수:
  *   cleanTableHtml(htmlString, config, colWidths)
  *     1. 노드 순회: 각 노드가 테이블 포함 여부에 따라 textGroup / tableGroup 버퍼에 누적
- *        - td/th 1개 이하인 테이블 → box_st2 div로 변환(단순 텍스트 박스 취급)
+ *        - td/th 1개 이하인 테이블 → config.boxClassName(기본값 'box_st2') div로 변환(단순 텍스트 박스 취급)
  *        - td/th 2개 이상 → tableGroup 버퍼에 축적 후 processTableOnly 일괄 처리
  *     2. flushTextGroup: 누적된 텍스트 블록을 processTextContent로 처리 후 결과에 병합
  *     3. flushTableGroup: 누적된 테이블 블록을 processTableOnly로 처리 후 결과에 병합
@@ -17,8 +17,8 @@
  *     4. 리스트-테이블 재배치: 리스트(ul/ol) 사이에 끼인 테이블을 마지막 li 내부로 이동,
  *        분리된 다음 리스트 항목을 마커 타입 기반으로 올바른 계층에 병합
  *     5. 빈 요소 제거: p/div/span, li, td/th 내 빈 노드를 일괄 삭제
- *     6. _processLinks: plain text URL을 <a class="bu_link"> 링크로 변환,
- *        file:// · # 등 유효하지 않은 href 태그는 제거
+ *     6. _processLinks: plain text URL을 <a class="{linkClassName}"> 링크로 변환,
+ *        file:// · # 등 유효하지 않은 href 태그는 제거. linkClassName은 텍스트/표 공통 적용.
  *     7. 원형 특수문자 변환: ol li > span.{numClassName|tableNumClassName} 내 ①②③ → 아라비아 숫자로 변환
  *
  *   updateStylesOnly (styleUpdater.js에서 re-export)
@@ -42,14 +42,16 @@ export { updateStylesOnly } from './utils/styleUpdater';
 
 const URL_REGEX = /(?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9.-]+\.(?:com|net|org|kr|io|info|biz|co|go|or|ac|re)(?:\/[^\s<]*)?/ig;
 
-// <a> 태그 정규화 및 plain-text URL → 링크 변환
-const _processLinks = (container) => {
+// <a> 태그 정규화 및 plain-text URL → 링크 변환. linkClassName은 텍스트/표 공통 클래스다.
+const _processLinks = (container, config) => {
+    const linkClass = (config.linkClassName && config.linkClassName.trim()) || 'bu_link';
+
     container.querySelectorAll('a').forEach(a => {
         const href = a.getAttribute('href') || '';
         const text = a.textContent.trim();
         if (text === '' && a.querySelectorAll('img, table, iframe').length === 0) { a.remove(); return; }
         if (!href || href.startsWith('file://') || href.startsWith('#') || href.trim() === '') { a.replaceWith(...a.childNodes); return; }
-        a.classList.add('bu_link');
+        a.classList.add(linkClass);
         if (!a.hasAttribute('target')) a.setAttribute('target', '_blank');
     });
 
@@ -77,7 +79,7 @@ const _processLinks = (container) => {
             if (match.index > lastIndex) fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
             const a = document.createElement('a');
             a.href = /^https?:\/\//i.test(actualUrl) ? actualUrl : `http://${actualUrl}`;
-            a.className = 'bu_link';
+            a.className = linkClass;
             a.target = '_blank';
             a.textContent = actualUrl;
             fragment.appendChild(a);
@@ -181,6 +183,8 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
     if (typeof window === 'undefined' || !document || !htmlString) return htmlString || '';
     const processText = config.isColorMode ? processTextContentColor : processTextContentNormal;
     const processTable = config.tableIsColorMode ? processTableOnlyColor : processTableOnlyNormal;
+    // 셀 1개짜리 표를 텍스트 박스로 변환할 때 적용할 클래스 (기본값: 'box_st2')
+    const boxClass = (config.boxClassName && config.boxClassName.trim()) || 'box_st2';
 
     const parser = getDOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
@@ -262,7 +266,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     if (tdCells.length <= 1) {
                         flushTableGroup();
                         const boxDiv = document.createElement('div');
-                        boxDiv.className = 'box_st2';
+                        boxDiv.className = boxClass;
                         const cell = tdCells[0];
                         if (cell) { while (cell.firstChild) boxDiv.appendChild(cell.firstChild); }
                         else { boxDiv.innerHTML = t.innerHTML; }
@@ -276,13 +280,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     }
                 });
             } else {
-                if (isMeaninglessNode(node) && currentTableGroup.childNodes.length > 0 && !node.classList?.contains('box-st') && !node.classList?.contains('box_st2')) {
+                if (isMeaninglessNode(node) && currentTableGroup.childNodes.length > 0 && !node.classList?.contains(boxClass)) {
                     return;
                 }
-                
+
                 flushTableGroup();
 
-                if (node.nodeType === 1 && (node.classList?.contains('box-st') || node.classList?.contains('box_st2'))) {
+                if (node.nodeType === 1 && node.classList?.contains(boxClass)) {
                     flushTextGroup();
                     resultWrapper.appendChild(node.cloneNode(true));
                     return;
@@ -468,14 +472,14 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         }
 
         resultWrapper.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6').forEach(el => {
-            if (el.classList?.contains('box-st') || el.classList?.contains('box_st2')) return;
+            if (el.classList?.contains(boxClass)) return;
             const text = el.textContent.replace(RE_WHITESPACE, '').trim();
             if (text === '' && el.querySelectorAll('img, table, iframe').length === 0) {
                 el.remove();
             }
         });
 
-        _processLinks(resultWrapper);
+        _processLinks(resultWrapper, config);
 
     // ul, ol, li 빈 공간 잔여물 처리
     resultWrapper.querySelectorAll('ul, ol').forEach(list => {

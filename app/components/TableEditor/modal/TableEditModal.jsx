@@ -15,6 +15,9 @@
  *   - 열 너비(ColWidthControl 컴포넌트)
  *   - 다음 인접 테이블 병합(isMergeTables)
  *
+ * 링크(linkClassName)/메일(mailClassName) 클래스명은 텍스트/표 공통 설정이라
+ * 이 모달이 아닌 EtcConfigModal(기타 설정)에서 관리한다 — 표별로 따로 지정할 수 없다.
+ *
  * 초기값:
  *   - existingConfig가 있으면 해당 테이블의 기존 설정으로, 없으면 globalConfig로 초기화.
  *

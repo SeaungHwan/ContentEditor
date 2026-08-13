@@ -152,10 +152,10 @@ export default function useEditorActions({
             let targetToProcess = table;
             const par = table.parentElement;
             // 테이블을 직접 감싸는 div wrapper를 탐지:
-            // box-st/box_st2 같은 특수 컨테이너나 에디터 루트가 아닌 모든 div를 wrapper로 인식
+            // 박스(config.boxClassName) 같은 특수 컨테이너나 에디터 루트가 아닌 모든 div를 wrapper로 인식
+            const boxClass = (config.boxClassName && config.boxClassName.trim()) || 'box_st2';
             if (par && par.tagName === 'DIV' &&
-                !par.classList.contains('box-st') &&
-                !par.classList.contains('box_st2') &&
+                !par.classList.contains(boxClass) &&
                 par !== instance.editor) {
                 targetToProcess = par;
             }

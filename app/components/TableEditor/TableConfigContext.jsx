@@ -23,6 +23,9 @@
  *   - headerRows/Cols    : thead 또는 좌측 헤더(th scope="row") 범위 행/열 수
  *   - tit1/tit2/tit3     : 제목 감지 설정 (type: 'custom'|'number-dot'|... , val: 직접입력값) → h3/h4/h5
  *   - tit1Class~tit3Class: 변환된 h3~h5에 적용할 클래스명
+ *   - boxClassName       : 셀 1개짜리 표를 텍스트 박스로 변환할 때 적용할 클래스 (기본값: 'box_st2')
+ *   - linkClassName      : 링크(a)에 적용할 클래스 — 텍스트/표 공통 (기본값: 'bu_link')
+ *   - mailClassName      : 이메일 링크(a)에 적용할 클래스 — 텍스트/표 공통 (기본값: 'bu_mail')
  *
  * 제공 액션:
  *   updateConfig(key, value)       → 단일 필드 변경
@@ -30,7 +33,7 @@
  *   handleTableTypeChange(type)    → tableType 변경 + headerRows/headerCols 초기화
  *
  * 사용처:
- *   - TableEditor, GlobalTableConfigModal, ContentConfigModal, TableEditModal
+ *   - TableEditor, GlobalTableConfigModal, ContentConfigModal, TableEditModal, EtcConfigModal
  */
 "use client";
 import React, { createContext, useContext, useReducer, useMemo } from "react";
@@ -70,6 +73,10 @@ const initialConfig = {
     tit1Class: 'tit1',
     tit2Class: 'tit2',
     tit3Class: 'tit3',
+
+    boxClassName: 'box_st2',
+    linkClassName: 'bu_link',
+    mailClassName: 'bu_mail',
 
 };
 

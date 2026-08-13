@@ -31,6 +31,7 @@
  *       · applyNestedClassesHelper: ul/ol에 list_st1, list_st2 등 depth 클래스 적용
  *       · applyVerticalHeaders: th 세로 방향 변환
  *       · performCleanup / traverseAndClean: 최종 정제
+ *         (traverseAndClean에는 config.linkClassName/mailClassName을 전달 — 텍스트/표 공통 클래스)
  *
  *   mergeAdjacentTable(baseTableEl, nextTableEl) → boolean
  *     - 두 테이블의 열 수가 같을 때 nextTable의 tbody 행을 baseTable에 병합한다.
@@ -106,8 +107,15 @@ const applyTableFormats = (container, config, colWidths) => {
     tableNumClassName: numClassName,
     tableKeepMarker: keepMarker,
     tableUseAtteMarker,
+    linkClassName,
+    mailClassName,
+    boxClassName,
     tableType, isWrapDiv, isVerticalHeader, headerRows, headerCols, isColorMode, isColorClassMode, tableListStartFrom2
 } = config;
+    const boxClass = (boxClassName && boxClassName.trim()) || 'box_st2';
+    // 링크/이메일 클래스는 텍스트 블록과 표가 공통으로 쓰는 전역 설정이라 표별 오버라이드가 없다.
+    const linkClass = (linkClassName && linkClassName.trim()) || 'bu_link';
+    const mailClass = (mailClassName && mailClassName.trim()) || 'bu_mail';
 
     const allTables = Array.from(container.querySelectorAll('table')).reverse();
     allTables.forEach(table => {
@@ -180,7 +188,7 @@ const applyTableFormats = (container, config, colWidths) => {
 
         const curNumClass = (curNumClassName && curNumClassName.trim()) ? curNumClassName.trim() : 'num';
 
-        applyTableSemantics(table, curWClass, curType, isNested, curWrapDiv, curHeaderRows, curHeaderCols, curColWidths);
+        applyTableSemantics(table, curWClass, curType, isNested, curWrapDiv, curHeaderRows, curHeaderCols, curColWidths, boxClass);
 
         // al(왼쪽 정렬) 판정용 셀렉터 — ul/ol/bu_atte 중 하나라도 있으면 al 클래스 적용.
         // 셋을 하나의 결합 셀렉터로 합쳐 querySelector 호출 1회로 판정한다.
@@ -205,7 +213,7 @@ const applyTableFormats = (container, config, colWidths) => {
                 if (!cell.querySelector('table') && !cell.textContent.trim()) cell.innerHTML = '';
 
                 performCleanup(cell, curNumClass);
-                traverseAndClean(cell, isColorMode, isColorClassMode);
+                traverseAndClean(cell, isColorMode, isColorClassMode, linkClass, mailClass);
                 if (isColorMode) mergeAdjacentColorSpans(cell, curNumClass);
 
                 if (cell.querySelector(alSelector)) {

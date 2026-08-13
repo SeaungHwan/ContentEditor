@@ -21,7 +21,7 @@
  *       colspan 여부와 무관하게 항상 시도한다 — 세로 변환 후 셀이 병합되어 colspan>1이 되어도
  *       흔적(vt-br/data-origin-html)이 영구히 남지 않도록 복원 경로는 건너뛰지 않는다.
  *
- *   applyTableSemantics(table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths)
+ *   applyTableSemantics(table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths, boxClass)
  *     - isWrapDiv에 따라 table을 div로 감싸거나 기존 div를 제거하고 wrapperClassName 적용.
  *     - type='row' (좌측 헤더) 모드:
  *       · 논리 열 인덱스(colspan 고려)를 그리드 배열로 계산.
@@ -122,13 +122,14 @@ export const applyVerticalHeaders = (table, isVerticalHeader) => {
 };
 
 // rootContainer: 루트 div와의 비교가 필요한 경우(styleUpdater) 전달. null이면 체크 생략.
-export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null) => {
+// boxClass: config.boxClassName(콘텐츠 설정에서 변경 가능, 기본값 'box_st2') — 표를 감싼 부모 div가
+// "박스"(단일 셀 표 변환 결과)인지 판별할 때 쓴다.
+export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null, boxClass = 'box_st2') => {
     if (isWrapDiv) {
         table.removeAttribute('class');
         const parent = table.parentElement;
         if (parent && parent.tagName.toLowerCase() === 'div'
-            && !parent.classList.contains('box-st')
-            && !parent.classList.contains('box_st2')
+            && !parent.classList.contains(boxClass)
             && parent !== rootContainer) {
             if (wClass) parent.className = wClass;
             else parent.removeAttribute('class');
@@ -143,8 +144,7 @@ export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null) => 
         else table.removeAttribute('class');
         const parent = table.parentElement;
         if (parent && parent.tagName.toLowerCase() === 'div'
-            && !parent.classList.contains('box-st')
-            && !parent.classList.contains('box_st2')
+            && !parent.classList.contains(boxClass)
             && parent !== rootContainer) {
             parent.replaceWith(table);
         }
@@ -181,8 +181,8 @@ const convertCellRole = (cell, scopeValue) => {
     }
 };
 
-export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths) => {
-    applyWrapDiv(table, wClass, isWrapDiv);
+export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths, boxClass = 'box_st2') => {
+    applyWrapDiv(table, wClass, isWrapDiv, null, boxClass);
 
     const newThead = document.createElement('thead');
     const newTbody = document.createElement('tbody');

@@ -15,6 +15,9 @@
  *   - 열 너비(ColWidthControl) 설정 없음.
  *   - 리스트 설정(ul/ol/체크박스) UI는 GlobalTableConfigModal·TableEditModal과 구조가 같아
  *     modal/shared/ListSettingsSection을 함께 사용한다.
+ *
+ * 박스(boxClassName)/링크(linkClassName)/메일(mailClassName) 클래스명은 텍스트/표 공통 설정이라
+ * 이 모달이 아닌 EtcConfigModal(기타 설정)에서 관리한다.
  */
 
 

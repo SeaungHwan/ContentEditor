@@ -32,6 +32,9 @@ const TableConfigToolbar = React.memo(({
                         <button type="button" onClick={() => toggleModal('globalTableConfig', true)} className={`${modals?.globalTableConfig ? layout.pri : ''} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.allTableBtn : undefined} title='테이블 설정'>
                             <p className={layout.ico}><img src='/00_common/images/sub_com/menuBtn2.svg' alt='아이콘'/></p><span>테이블</span>
                         </button>
+                        <button type="button" onClick={() => toggleModal('etcConfig', true)} className={`${modals?.etcConfig ? layout.pri : ''} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.etcBtn : undefined} title='기타 설정'>
+                            <p className={layout.ico}><img src='/00_common/images/sub_com/menuBtn3.svg' alt='아이콘'/></p><span>기타</span>
+                        </button>
                         <button type="button" onClick={handleManualClean} className={`${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.cleanBtn : undefined} title='코드 정리 (Ctrl+Shift+Z)'>
                             <img src='/00_common/images/sub_com/btn_ico01.svg' alt='코드 정리'/><span>코드 정리</span>
                         </button>

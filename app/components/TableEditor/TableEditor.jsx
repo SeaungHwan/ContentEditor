@@ -7,7 +7,7 @@ import layout from "../../layout.module.css";
 import { cleanTableHtml, updateStylesOnly } from './cleanTableHtml';
 import TableConfigToolbar from './TableConfigToolbar';
 import TocPanel from './TocPanel';
-import { GUIDE_MESSAGES, formatColWidths, TEMP_ATTRS, TEMP_ATTRS_SELECTOR } from './utils/constants';
+import { GUIDE_MESSAGES, formatColWidths, TEMP_ATTRS, TEMP_ATTRS_SELECTOR, RE_WHITESPACE } from './utils/constants';
 
 const AUTO_PASTE_KEY = 'table-editor-auto-paste';
 
@@ -21,6 +21,7 @@ import GuideModal from './modal/GuideModal';
 import TableEditModal from './modal/TableEditModal';
 import GlobalTableConfigModal from './modal/GlobalTableConfigModal';
 import ContentConfigModal from './modal/ContentConfigModal';
+import EtcConfigModal from './modal/EtcConfigModal';
 import PresetsModal from './modal/PresetsModal';
 
 import useModals from './hooks/useModals';
@@ -66,6 +67,34 @@ function replaceLiInList(li, newEl) {
     list.replaceWith(...replacements);
 }
 
+// 후보 엘리먼트를 무시 처리: li면 p로 추출, 아니면 마커 속성만 제거
+// (handleCandidateDismiss/handleCandidateDismissAll 공용)
+function dismissCandidateElement(el) {
+    const li = el.tagName === 'LI' ? el : el.closest('li');
+    if (li) {
+        const p = document.createElement('p');
+        p.innerHTML = el.innerHTML;
+        replaceLiInList(li, p);
+    } else {
+        el.removeAttribute('data-hcand-id');
+    }
+}
+
+// localStorage에 저장된 자동 정리 활성 여부를 읽는다 (기본값 true)
+function readAutoPasteEnabled() {
+    try {
+        const stored = localStorage.getItem(AUTO_PASTE_KEY);
+        return stored === null ? true : stored === 'true';
+    } catch { return true; }
+}
+
+// 값이 바뀔 때마다 ref.current를 최신 상태로 동기화 (stale closure 방지용 보일러플레이트 통합)
+function useLatestRef(value) {
+    const ref = useRef(value);
+    useEffect(() => { ref.current = value; }, [value]);
+    return ref;
+}
+
 export default function TableEditorWrapper({ initialHtml = '', onChange }) {
     return (
         <TableConfigProvider>
@@ -81,7 +110,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     const [colWidths, setColWidths] = useState(['']);
     const [selectedTableNode, setSelectedTableNode] = useState(null);
     const [isEqualColWidths, setIsEqualColWidths] = useState(false);
-    const selectedTableNodeRef = useRef(null);
+    const selectedTableNodeRef = useLatestRef(selectedTableNode);
     const editorComponentRef = useRef(null);
     const editBoxRef = useRef(null);
     const tableBtnRef = useRef(null);
@@ -132,14 +161,9 @@ function TableEditor({ initialHtml = '', onChange }) {
         openTableEditModal,
     });
 
-    const handleManualCleanRef = useRef(handleManualClean);
-    useEffect(() => { handleManualCleanRef.current = handleManualClean; }, [handleManualClean]);
-
-    const handleCopyRef = useRef(handleCopy);
-    useEffect(() => { handleCopyRef.current = handleCopy; }, [handleCopy]);
-
-    const handleClearRef = useRef(handleClear);
-    useEffect(() => { handleClearRef.current = handleClear; }, [handleClear]);
+    const handleManualCleanRef = useLatestRef(handleManualClean);
+    const handleCopyRef = useLatestRef(handleCopy);
+    const handleClearRef = useLatestRef(handleClear);
 
     // ===== [제목 후보 감지] ========================================================
     const headingCacheRef = useRef({ html: '', result: null });
@@ -168,8 +192,7 @@ function TableEditor({ initialHtml = '', onChange }) {
         triggerToast(`제목 후보 ${candidates.length}개를 감지했습니다.`);
     }, [triggerToast]);
 
-    const runHeadingDetectRef = useRef(runHeadingDetect);
-    useEffect(() => { runHeadingDetectRef.current = runHeadingDetect; }, [runHeadingDetect]);
+    const runHeadingDetectRef = useLatestRef(runHeadingDetect);
 
     // 정리 + 감지를 묶은 래퍼 (툴바·단축키에서 사용)
     const handleManualCleanAndDetect = useCallback(async (...args) => {
@@ -224,12 +247,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     }, [toggleModal]);
 
     // ===== [붙여넣기 자동 정리] ==================================================
-    const [isAutoPasteEnabled, setIsAutoPasteEnabled] = useState(() => {
-        try {
-            const stored = localStorage.getItem(AUTO_PASTE_KEY);
-            return stored === null ? true : stored === 'true';
-        } catch { return true; }
-    });
+    const [isAutoPasteEnabled, setIsAutoPasteEnabled] = useState(readAutoPasteEnabled);
     const toggleAutoPaste = useCallback(() => {
         setIsAutoPasteEnabled(prev => {
             const next = !prev;
@@ -240,10 +258,7 @@ function TableEditor({ initialHtml = '', onChange }) {
 
     // handleManualCleanRef를 통해 항상 최신 config를 참조 (JoditCustomEditor memo로 인한 stale closure 방지)
     const handleAutoPaste = useCallback(async () => {
-        try {
-            const stored = localStorage.getItem(AUTO_PASTE_KEY);
-            if ((stored === null ? true : stored === 'true') === false) return;
-        } catch {}
+        if (!readAutoPasteEnabled()) return;
         setIsCleaning(true);
         try {
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -425,8 +440,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     }, [handleTocLabelSave]);
 
     // ===== [제목 후보 조작] ========================================================
-    const headingCandidatesRef = useRef(headingCandidates);
-    useEffect(() => { headingCandidatesRef.current = headingCandidates; }, [headingCandidates]);
+    const headingCandidatesRef = useLatestRef(headingCandidates);
 
     // 후보 항목 클릭 → 에디터에서 하이라이트 + 스크롤
     const scrollToCandidate = useCallback((id) => {
@@ -440,15 +454,10 @@ function TableEditor({ initialHtml = '', onChange }) {
         setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 1500);
     }, []);
 
-    // 개별 변환
-    const handleCandidateConvert = useCallback((id, level) => {
-        const instance = editorComponentRef.current?.getInstance();
-        if (!instance) return;
-        const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
-        if (!el) return;
+    // 후보 엘리먼트를 heading으로 변환하고 되돌리기용 snapshot을 만든다
+    // (handleCandidateConvert/handleCandidateConvertAll 공용)
+    const convertCandidateElement = useCallback((el, level, id, candidateData) => {
         const levelClassMap = { h3: config.tit1Class, h4: config.tit2Class, h5: config.tit3Class };
-        const candidateData = headingCandidatesRef.current.find(c => c.id === id);
-
         const li = el.tagName === 'LI' ? el : el.closest('li');
         const list = li ? li.closest('ul, ol') : null;
 
@@ -472,28 +481,30 @@ function TableEditor({ initialHtml = '', onChange }) {
         } else {
             el.replaceWith(heading);
         }
+        return snapshot;
+    }, [config.tit1Class, config.tit2Class, config.tit3Class]);
+
+    // 개별 변환
+    const handleCandidateConvert = useCallback((id, level) => {
+        const instance = editorComponentRef.current?.getInstance();
+        if (!instance) return;
+        const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
+        if (!el) return;
+        const candidateData = headingCandidatesRef.current.find(c => c.id === id);
+        const snapshot = convertCandidateElement(el, level, id, candidateData);
 
         syncEditorHtml();
         setHeadingCandidates(prev => prev.filter(c => c.id !== id));
         setConversionHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), { items: [snapshot] }]);
         triggerToast('제목으로 변환했습니다.');
-    }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
+    }, [convertCandidateElement, syncEditorHtml, triggerToast]);
 
     // 개별 무시: li이면 제자리에서 p 태그로 추출, 아니면 마커만 제거
     const handleCandidateDismiss = useCallback((id) => {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance) return;
         const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
-        if (el) {
-            const li = el.tagName === 'LI' ? el : el.closest('li');
-            if (li) {
-                const p = document.createElement('p');
-                p.innerHTML = el.innerHTML;
-                replaceLiInList(li, p);
-            } else {
-                el.removeAttribute('data-hcand-id');
-            }
-        }
+        if (el) dismissCandidateElement(el);
         syncEditorHtml();
         setHeadingCandidates(prev => prev.filter(c => c.id !== id));
     }, [syncEditorHtml]);
@@ -503,57 +514,24 @@ function TableEditor({ initialHtml = '', onChange }) {
         const candidates = headingCandidatesRef.current;
         const instance = editorComponentRef.current?.getInstance();
         if (!instance || !candidates.length) return;
-        const levelClassMap = { h3: config.tit1Class, h4: config.tit2Class, h5: config.tit3Class };
         const snapshots = [];
         candidates.forEach((cand) => {
             const { id, suggestedLevel } = cand;
             const el = instance.editor.querySelector(`[data-hcand-id="${id}"]`);
             if (!el) return;
-
-            const li = el.tagName === 'LI' ? el : el.closest('li');
-            const list = li ? li.closest('ul, ol') : null;
-
-            const heading = document.createElement(suggestedLevel);
-            if (levelClassMap[suggestedLevel]) heading.className = levelClassMap[suggestedLevel];
-            heading.innerHTML = li ? li.innerHTML : el.innerHTML;
-            heading.querySelectorAll('[data-hcand-id]').forEach(e => e.removeAttribute('data-hcand-id'));
-            heading.setAttribute('data-hconv-id', id);
-
-            snapshots.push({
-                convId: id,
-                originalTag: li ? 'li' : el.tagName.toLowerCase(),
-                originalInner: li ? li.innerHTML : el.innerHTML,
-                originalClass: li ? (li.className || '') : (el.className || ''),
-                originalListClass: list?.className || '',
-                candidateData: cand
-            });
-
-            if (li) {
-                replaceLiInList(li, heading);
-            } else {
-                el.replaceWith(heading);
-            }
+            snapshots.push(convertCandidateElement(el, suggestedLevel, id, cand));
         });
         syncEditorHtml();
         if (snapshots.length) setConversionHistory(prev => [...prev.slice(-(MAX_HISTORY - 1)), { items: snapshots }]);
         triggerToast(`${candidates.length}개를 제목으로 변환했습니다.`);
         setHeadingCandidates([]);
-    }, [config.tit1Class, config.tit2Class, config.tit3Class, syncEditorHtml, triggerToast]);
+    }, [convertCandidateElement, syncEditorHtml, triggerToast]);
 
     // 전체 무시
     const handleCandidateDismissAll = useCallback(() => {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance) return;
-        instance.editor.querySelectorAll('[data-hcand-id]').forEach(el => {
-            const li = el.tagName === 'LI' ? el : el.closest('li');
-            if (li) {
-                const p = document.createElement('p');
-                p.innerHTML = el.innerHTML;
-                replaceLiInList(li, p);
-            } else {
-                el.removeAttribute('data-hcand-id');
-            }
-        });
+        instance.editor.querySelectorAll('[data-hcand-id]').forEach(dismissCandidateElement);
         syncEditorHtml();
         setHeadingCandidates([]);
     }, [syncEditorHtml]);
@@ -569,8 +547,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     }, []);
 
     // 마지막 변환 되돌리기
-    const conversionHistoryRef = useRef(conversionHistory);
-    useEffect(() => { conversionHistoryRef.current = conversionHistory; }, [conversionHistory]);
+    const conversionHistoryRef = useLatestRef(conversionHistory);
 
     const handleConversionUndo = useCallback(() => {
         const history = conversionHistoryRef.current;
@@ -642,19 +619,20 @@ function TableEditor({ initialHtml = '', onChange }) {
         const instance = editorComponentRef.current?.getInstance();
         if (!instance || !selectedTableNode) return;
 
+        const boxClass = (config.boxClassName && config.boxClassName.trim()) || 'box_st2';
         const newNode = document.createElement('div');
-        newNode.className = 'box_st2 rsp_img ac';
+        newNode.className = `${boxClass} rsp_img ac`;
         newNode.innerHTML = '\n    <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%23e9e9e9%22%2F%3E%3C%2Fsvg%3E" alt="">\n';
 
         // 'tbl_st'는 실제 기본 wrapperClassName(TableConfigContext.jsx)과 일치해야 wrapper div를 찾을 수 있다.
         // 이전에는 'tbl-st'(하이픈)로 오타가 나 있어 정상 래핑된 표에서 항상 매칭에 실패했다.
-        const wrapperDiv = selectedTableNode.closest('div.tbl_st, div.box-st, div.box_st2');
+        const wrapperDiv = selectedTableNode.closest(`div.tbl_st, div.${boxClass}`);
         (wrapperDiv || selectedTableNode).replaceWith(newNode);
         syncEditorHtml();
         setSelectedTableNode(null);
         if (tableBtnRef.current) tableBtnRef.current.style.display = 'none';
         triggerToast('이미지 박스로 치환되었습니다.');
-    }, [selectedTableNode, syncEditorHtml, triggerToast]);
+    }, [config.boxClassName, selectedTableNode, syncEditorHtml, triggerToast]);
 
     // ===== [순번 채우기] =========================================================
     const handleFillSeq = useCallback(() => {
@@ -702,8 +680,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     }, [selectedTableNode, isEqualColWidths, syncEditorHtml, triggerToast]);
 
     // ===== [onChange 콜백] ======================================================
-    const onChangeRef = useRef(onChange);
-    useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+    const onChangeRef = useLatestRef(onChange);
 
     useEffect(() => {
         if (!onChangeRef.current || !debouncedContent) return;
@@ -715,7 +692,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             TEMP_ATTRS.forEach(attr => el.removeAttribute(attr));
         });
         doc.querySelectorAll('td, th').forEach(cell => {
-            if (cell.textContent.replace(/[\s ​-‍﻿]/g, '') === '' &&
+            if (cell.textContent.replace(RE_WHITESPACE, '') === '' &&
                 cell.querySelectorAll('img, iframe, table').length === 0) {
                 cell.innerHTML = '';
             }
@@ -744,9 +721,6 @@ function TableEditor({ initialHtml = '', onChange }) {
         }
     }, [isGuideMode]);
 
-    useEffect(() => {
-        selectedTableNodeRef.current = selectedTableNode;
-    }, [selectedTableNode]);
 
     useEffect(() => {
         const handleOutsideClick = (e) => {
@@ -889,6 +863,24 @@ function TableEditor({ initialHtml = '', onChange }) {
         triggerToast('컨텐츠 기본 설정이 변경되었습니다.');
     }, [updateMultipleConfig, toggleModal, triggerToast]);
 
+    const handleEtcConfigApply = useCallback((newConfig) => {
+        updateMultipleConfig(newConfig);
+        toggleModal('etcConfig', false);
+        triggerToast('기타 설정이 변경되었습니다.');
+    }, [updateMultipleConfig, toggleModal, triggerToast]);
+
+    // 이미지 박스 치환은 셀이 1개이고 그 안의 내용이 img 하나뿐인 표에서만 허용한다
+    // (<td><img></td> 또는 <th><img></th>) — 텍스트나 다른 요소가 섞여 있으면 정보가 손실된다.
+    const canReplaceWithImageBox = (() => {
+        if (!selectedTableNode) return false;
+        const cells = selectedTableNode.querySelectorAll('td, th');
+        if (cells.length !== 1) return false;
+        const cell = cells[0];
+        return cell.querySelectorAll('img').length === 1 &&
+            cell.querySelectorAll('*').length === 1 &&
+            cell.textContent.replace(RE_WHITESPACE, '') === '';
+    })();
+
     return (
         <div className={layout.tableWrap} suppressHydrationWarning>
             <div className={layout.contBox}>
@@ -929,8 +921,8 @@ function TableEditor({ initialHtml = '', onChange }) {
                                     <button type="button" onClick={handleEqualColWidths} className={`${layout.Btn}${isEqualColWidths ? ` ${layout.BtnOn}` : ''}`} title={isEqualColWidths ? "열 너비 균등 분할 해제" : "열 너비 균등 분할"}>
                                         <i className="ri-layout-column-line"></i>
                                     </button>
-                                    {/* 이미지 박스 치환 */}
-                                    <button type="button" onClick={handleReplaceWithImageBox} className={layout.Btn} title="표를 이미지 박스로 치환">
+                                    {/* 이미지 박스 치환: 셀 1개에 img만 있는 표가 아니면 정보 손실을 막기 위해 비활성화 */}
+                                    <button type="button" onClick={handleReplaceWithImageBox} disabled={!canReplaceWithImageBox} className={layout.Btn} title={canReplaceWithImageBox ? "표를 이미지 박스로 치환" : "셀 1개에 이미지만 있는 표만 이미지 박스로 치환할 수 있습니다"}>
                                         <i className="ri-image-line"></i>
                                     </button>
                                     {/* 기존: 개별 표 설정 */}
@@ -1012,6 +1004,17 @@ function TableEditor({ initialHtml = '', onChange }) {
                     isGuideMode={isGuideMode}
                     setIsGuideMode={setIsGuideMode}
                     fadeStyle={getFadeStyle('contentConfig')}
+                />
+            )}
+            {modals.etcConfig && (
+                <EtcConfigModal
+                    onClose={() => toggleModal('etcConfig', false)}
+                    onApply={handleEtcConfigApply}
+                    globalConfig={config}
+                    layout={layout}
+                    isGuideMode={isGuideMode}
+                    setIsGuideMode={setIsGuideMode}
+                    fadeStyle={getFadeStyle('etcConfig')}
                 />
             )}
             {modals.presets && (

@@ -147,6 +147,9 @@
 .tableBtn button i {font-size: 1rem;}
 .tableBtn .Btn:focus,.tableBtn .Btn:hover {border: 1px solid #4CA67C; background: #4CA67C; }
 .tableBtn .Btn:focus > *,.tableBtn .Btn:hover > *{color:#fff;}
+.tableBtn .Btn:disabled {cursor: not-allowed; opacity: 0.4;}
+.tableBtn .Btn:disabled:focus,.tableBtn .Btn:disabled:hover {border: 1px solid rgba(76, 166, 124, 0.3); background: #F5F8F1;}
+.tableBtn .Btn:disabled:focus > *,.tableBtn .Btn:disabled:hover > *{color: #4CA67C;}
 .tableBtn .BtnOn {border: 1px solid #4CA67C !important; background: #4CA67C !important;}
 .tableBtn .BtnOn > * {color: #fff !important;}
 

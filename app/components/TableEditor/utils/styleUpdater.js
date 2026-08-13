@@ -15,6 +15,7 @@
  *          (wrapperClassName/isWrapDiv/isVerticalHeader뿐 아니라 tableUlClassName/
  *           tableOlClassName/tableListStartFrom2도 개별 표 설정값이 있으면 우선한다)
  *       2. isWrapDiv에 따라 table을 div로 감싸거나 제거하고 wrapperClassName 적용
+ *          (부모 div가 박스인지 판별할 때 config.boxClassName을 사용 — applyWrapDiv 참고)
  *       3. applyColGroupHelper로 <colgroup> 재생성 (열 너비 변경 반영)
  *       4. applyNestedClassesHelper로 td/th 내 ul/ol 클래스 재적용
  *       5. applyVerticalHeaders로 th 세로 방향 여부 재적용
@@ -37,9 +38,11 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
         tableUlClassName: ulClass,
         tableOlClassName: olClassName,
         tableListStartFrom2,
+        boxClassName,
         isWrapDiv = true,
         isVerticalHeader = false
     } = config;
+    const boxClass = (boxClassName && boxClassName.trim()) || 'box_st2';
 
     try {
         const parser = getDOMParser();
@@ -89,7 +92,7 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
                 } catch (e) {}
             }
 
-            applyWrapDiv(table, curWClass, curWrapDiv, tempDiv);
+            applyWrapDiv(table, curWClass, curWrapDiv, tempDiv, boxClass);
 
             // applyWrapDiv가 기존 래퍼 div를 교체하면 data-local-config가 소실될 수 있으므로
             // 처리 후 올바른 요소(래퍼 div 또는 table)에 복원한다.

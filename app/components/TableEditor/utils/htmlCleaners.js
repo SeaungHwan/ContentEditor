@@ -11,11 +11,14 @@
  *     - DOMParser 인스턴스를 싱글톤으로 관리해 불필요한 객체 생성을 줄인다.
  *     - 서버 환경(window undefined)에서는 null 반환.
  *
- *   traverseAndClean(element, isColorMode, isColorClassMode)
+ *   traverseAndClean(element, isColorMode, isColorClassMode, linkClassName, mailClassName)
  *     - element 하위 전체 DOM 트리를 역순(자식→부모) 순회하며 정제.
+ *     - linkClassName/mailClassName이 없으면(undefined) 링크/이메일 클래스 부여를 건너뛴다
+ *       (예: 표 전체를 한 번에 훑는 1차 패스는 개별 표의 로컬 클래스 설정을 아직 모르므로 건너뛰고,
+ *        해당 설정이 확정된 이후의 셀 단위 2차 패스에서만 부여해 클래스 중복을 방지한다).
  *     - 처리 내용:
  *       · 주석 노드(nodeType 8) → 삭제
- *       · 이메일 텍스트(abc@xyz.com) → <a class="bu_mail" href="mailto:..."> 로 변환
+ *       · 이메일 텍스트(abc@xyz.com) → <a class="{mailClassName}" href="mailto:..."> 로 변환
  *       · <font color="" face=""> → <span style="color/fontFamily"> 로 변환
  *       · Word/Office 전용 태그(v:, w:, o:) → 삭제
  *       · ALLOWED_TAGS에 없는 태그 → 태그 제거(내용 유지, unwrap)
@@ -51,14 +54,20 @@ export const getDOMParser = () => {
 };
 
 
-export const traverseAndClean = (element, isColorMode, isColorClassMode = true, _depth = 0) => {
+export const traverseAndClean = (element, isColorMode, isColorClassMode = true, linkClassName, mailClassName, _depth = 0) => {
     if (_depth > 200) return;
     for (let i = element.childNodes.length - 1; i >= 0; i--) {
         const node = element.childNodes[i];
         if (node.nodeType === 8) { node.remove(); continue; }
         if (node.nodeType === 3) {
+            // 워드/HWP에서 복사한 원문에 줄바꿈 방지 등의 목적으로 문장 중간에 삽입된 제로폭
+            // 문자(ZWSP/ZWNJ/ZWJ/BOM)는 선행 위치가 아니면 다른 정리 로직이 걸러내지 못하므로,
+            // 위치와 무관하게 여기서 한 번에 제거한다. (NBSP(\xA0)는 시각적 공백이라 제외)
+            if (/[\u200B-\u200D\uFEFF]/.test(node.textContent)) {
+                node.textContent = node.textContent.replace(/[\u200B-\u200D\uFEFF]/g, '');
+            }
             const parentTag = element.tagName ? element.tagName.toLowerCase() : '';
-            if (parentTag !== 'a') {
+            if (parentTag !== 'a' && mailClassName) {
                 const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
                 const text = node.textContent;
                 if (EMAIL_RE.test(text)) {
@@ -69,7 +78,7 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
                         if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
                         const a = document.createElement('a');
                         a.href = `mailto:${m[1]}`;
-                        a.className = 'bu_mail';
+                        a.className = mailClassName;
                         a.textContent = m[1];
                         frag.appendChild(a);
                         last = m.index + m[0].length;
@@ -80,7 +89,7 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
             }
             continue;
         }
-        if (node.nodeType === 1) traverseAndClean(node, isColorMode, isColorClassMode, _depth + 1);
+        if (node.nodeType === 1) traverseAndClean(node, isColorMode, isColorClassMode, linkClassName, mailClassName, _depth + 1);
     }
 
     if (element.nodeType !== 1) return;
@@ -94,8 +103,8 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
         if (face) span.style.fontFamily = face;
         while (element.firstChild) span.appendChild(element.firstChild);
         element.replaceWith(span);
-        traverseAndClean(span, isColorMode, isColorClassMode, _depth + 1);
-        return; 
+        traverseAndClean(span, isColorMode, isColorClassMode, linkClassName, mailClassName, _depth + 1);
+        return;
     }
 
     if (['v', 'w', 'o'].includes(tagName.split(':')[0])) { element.remove(); return; }
@@ -118,7 +127,7 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
             element.replaceWith(...element.childNodes);
             return;
         }
-        element.classList.add('bu_link');
+        if (linkClassName) element.classList.add(linkClassName);
     }
 
     const attributes = Array.from(element.attributes);
