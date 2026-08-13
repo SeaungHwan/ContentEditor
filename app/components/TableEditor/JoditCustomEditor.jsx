@@ -48,6 +48,42 @@ const BEAUTIFY_OPTIONS = {
 
 const HEADING_TAGS = new Set(['H2', 'H3', 'H4', 'H5']);
 
+// Jodit의 다중 셀 선택은 실제 DOM에 클래스를 남기지 않고, 선택된 셀들의 cssPath를
+// 모아 동적 <style class="jodit jodit-table-container jodit-box"> 태그로만 표시한다
+// (node_modules/jodit/esm/modules/table/table.js의 __recalculateStyles). toggleTh
+// 버튼에서 이 두 단계로 실제 선택 셀을 찾아내는 방식이 검증됐으므로, 다중 셀에 걸친
+// Backspace/Delete 처리에도 동일한 감지 로직을 재사용한다.
+const getSelectedTableCells = (editor) => {
+    let selectedCells = Array.from(editor.editor.querySelectorAll(
+        'td.jodit-selected-cell, th.jodit-selected-cell, td[data-jodit-selected-cell], th[data-jodit-selected-cell], td.jodit_selected_cell, th.jodit_selected_cell'
+    ));
+
+    if (selectedCells.length === 0) {
+        const doc = editor.editorDocument || document;
+        const styleTags = Array.from(doc.querySelectorAll('style'));
+        const selectors = [];
+        styleTags.forEach(style => {
+            const className = style.getAttribute('class') || '';
+            if (className.includes('jodit-table-container') && style.innerHTML.includes('{')) {
+                const selectorPart = style.innerHTML.split('{')[0].trim();
+                if (selectorPart) selectors.push(selectorPart);
+            }
+        });
+
+        if (selectors.length > 0) {
+            try {
+                const fullSelector = selectors.join(', ');
+                const elements = Array.from(editor.editor.querySelectorAll(fullSelector));
+                selectedCells = elements.filter(el => el.tagName === 'TD' || el.tagName === 'TH');
+            } catch (e) {
+                console.warn("선택자 파싱 오류:", e);
+            }
+        }
+    }
+
+    return selectedCells;
+};
+
 const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPreview, onTableSelect, editorClasses, triggerToast, onAutoPaste, onStatsChange }, ref) => {
     const editorRef = useRef(null);
     const handlersRef = useRef({ onChange, onPreview, onTableSelect, triggerToast, onAutoPaste, onStatsChange });
@@ -116,6 +152,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             h4: classesRef.current.tit2 || '',
             h5: classesRef.current.tit3 || '',
         });
+
         return ({
         readonly: false,
         height: '100%',
@@ -125,6 +162,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
         toolbarAdaptive: false,
         useAceEditor: false,
         sourceEditor: 'area',
+        toolbarInlineForSelection: true,
         allowResizeX: false,
         allowResizeY: false,
         cleanHTML: {
@@ -148,35 +186,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                             return;
                         }
 
-                        let selectedCells = [];
-                        const doc = editor.editorDocument || document;
-                        const styleTags = Array.from(doc.querySelectorAll('style'));
-
-                        selectedCells = Array.from(editor.editor.querySelectorAll(
-                            'td.jodit-selected-cell, th.jodit-selected-cell, td[data-jodit-selected-cell], th[data-jodit-selected-cell], td.jodit_selected_cell, th.jodit_selected_cell'
-                        ));
-
-                        if (selectedCells.length === 0) {
-                            let selectors = [];
-                            styleTags.forEach(style => {
-                                const className = style.getAttribute('class') || '';
-                                if (className.includes('jodit-table-container') && style.innerHTML.includes('{')) {
-                                    const selectorPart = style.innerHTML.split('{')[0].trim();
-                                    if (selectorPart) selectors.push(selectorPart);
-                                }
-                            });
-
-                            if (selectors.length > 0) {
-                                try {
-                                    const fullSelector = selectors.join(', ');
-                                    // 에디터 내부 셀만 필터링
-                                    const elements = Array.from(editor.editor.querySelectorAll(fullSelector));
-                                    selectedCells = elements.filter(el => el.tagName === 'TD' || el.tagName === 'TH');
-                                } catch (e) {
-                                    console.warn("선택자 파싱 오류:", e);
-                                }
-                            }
-                        }
+                        let selectedCells = getSelectedTableCells(editor);
 
                         if (selectedCells.length === 0) {
                             const current = editor.s.current();
@@ -245,7 +255,6 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             },
             
             mouseup: function (e) {
-                if (this && typeof this.getMode === 'function' && this.getMode() !== 1) return;
                 if (!handlersRef.current.onTableSelect) return;
                 if (!e || !e.target || typeof e.target.closest !== 'function') return;
                 clearTimeout(tableSelectDebounceRef.current);
@@ -256,7 +265,6 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             },
 
             keyup: function (_e) {
-                if (this && typeof this.getMode === 'function' && this.getMode() !== 1) return;
                 if (!handlersRef.current.onTableSelect) return;
                 clearTimeout(tableSelectDebounceRef.current);
                 const jodit = this;
@@ -280,6 +288,27 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                 handlersRef.current.onAutoPaste?.();
             },
 
+            // 여러 테이블 셀에 걸친 선택을 Delete/Backspace로 지우면, Jodit의 기본
+            // 삭제 로직(range.insertNode)이 Range 경계를 #document로 붕괴시켜
+            // "insertNode ... #document" 에러를 던진다. getSelectedTableCells로
+            // (toggleTh와 동일하게) 실제 선택된 셀을 판별해 2개 이상이면 각 셀 내용을
+            // 직접 지워 이 경로를 우회한다.
+            beforeCommand: function (command) {
+                if (!/^(delete|backspace)(word|sentence)?button$/.test(command)) return;
+                const jodit = editorRef.current;
+                if (!jodit) return;
+                const cells = getSelectedTableCells(jodit);
+                if (cells.length < 2) return;
+                cells.forEach(cell => {
+                    cell.innerHTML = '';
+                    cell.appendChild(jodit.createInside.element('br'));
+                });
+                jodit.s.setCursorIn(cells[0]);
+                jodit.synchronizeValues();
+                handlersRef.current.onChange?.(jodit.value);
+                return false;
+            },
+
             beforeSetMode: (instance) => {
                 try {
                     if (htmlBeautifyRef.current) {
@@ -300,43 +329,6 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                 }, 50);
             },
             
-            beforeExecCommand: function(command, _, value) {
-                if (command !== 'formatBlock') return;
-                const editor = this;
-                const current = editor.s.current();
-                if (!current) return;
-
-                const node = current.nodeType === 3 ? current.parentElement : current;
-                const tag = (value || 'p').toLowerCase();
-                const titClassMap = getTitClassMap();
-                if (!titClassMap[tag]) return;
-
-                const cell = node?.closest?.('td, th');
-
-                if (cell) {
-                    // 셀 내부: 직접 요소 생성 후 클래스 즉시 적용
-                    let blockEl = node;
-                    while (blockEl && blockEl.parentElement !== cell) {
-                        blockEl = blockEl.parentElement;
-                    }
-                    const newEl = editor.create.element(tag);
-                    newEl.className = titClassMap[tag];
-                    if (blockEl && blockEl !== cell && blockEl.tagName !== 'TD' && blockEl.tagName !== 'TH') {
-                        newEl.innerHTML = blockEl.innerHTML;
-                        blockEl.replaceWith(newEl);
-                    } else {
-                        newEl.innerHTML = cell.innerHTML;
-                        cell.innerHTML = '';
-                        cell.appendChild(newEl);
-                    }
-                    editor.s.setCursorIn(newEl);
-                    handlersRef.current.onChange?.(editor.value);
-                    return false;
-                }
-
-                // 일반 텍스트: Jodit 기본 formatBlock 실행
-            },
-
             afterInit: (instance) => {
                 editorRef.current = instance;
                 if (initialHtmlRef.current) {
@@ -359,27 +351,32 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                 }
 
                 const applyTitClasses = (mutations) => {
-                    // 추가된 노드 중 heading이 없으면 조기 리턴 (키 입력 등 불필요한 실행 방지)
-                    const hasHeadingAdded = mutations.some(m =>
-                        Array.from(m.addedNodes).some(n =>
+                    // 대용량 문서에서 매번 에디터 전체를 재스캔하면 비용이 문서 크기에
+                    // 비례해 커지므로, 이번에 실제로 추가된 노드들만 대상으로 한다
+                    // (h2는 자신은 대상이 아니지만 내부에 h3~5를 포함할 수 있어 신호로만 사용).
+                    const addedHeadingRoots = mutations
+                        .flatMap(m => Array.from(m.addedNodes))
+                        .filter(n =>
                             HEADING_TAGS.has(n.nodeName) ||
                             (n.nodeType === 1 && n.querySelector?.('h2,h3,h4,h5'))
-                        )
-                    );
-                    if (!hasHeadingAdded || !instance.editor) return;
+                        );
+                    if (!addedHeadingRoots.length || !instance.editor) return;
 
                     // 클래스 변경이 다시 observer를 트리거하지 않도록 일시 중단
                     titObserverRef.current.disconnect();
 
                     const titClassMap = getTitClassMap();
                     let applied = false;
-                    // 태그별로 3번 querySelectorAll을 돌리는 대신 결합 셀렉터로 에디터 전체를 한 번만 순회한다.
-                    instance.editor.querySelectorAll('h3,h4,h5').forEach(el => {
-                        const tag = el.tagName.toLowerCase();
-                        if (el.className !== titClassMap[tag]) {
-                            el.className = titClassMap[tag];
-                            applied = true;
-                        }
+                    addedHeadingRoots.forEach(node => {
+                        const headings = ['H3', 'H4', 'H5'].includes(node.nodeName) ? [node] : [];
+                        headings.push(...node.querySelectorAll('h3,h4,h5'));
+                        headings.forEach(el => {
+                            const tag = el.tagName.toLowerCase();
+                            if (el.className !== titClassMap[tag]) {
+                                el.className = titClassMap[tag];
+                                applied = true;
+                            }
+                        });
                     });
 
                     titObserverRef.current.observe(instance.editor, { childList: true, subtree: true });

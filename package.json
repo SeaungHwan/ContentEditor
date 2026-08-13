@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
+    "jodit": "^4.13.22",
     "jodit-react": "^5.2.38",
     "js-beautify": "^1.15.4",
     "next": "^16.0.8",

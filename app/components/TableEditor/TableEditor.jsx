@@ -205,9 +205,11 @@ function TableEditor({ initialHtml = '', onChange }) {
         editorComponentRef.current?.getInstance()?.value || '',
     []);
 
-    const { restore, clearSaved } = useAutoSave(getEditorContent);
+    const { restore, clearSaved, wasUncleanShutdown } = useAutoSave(getEditorContent);
 
     useEffect(() => {
+        // 지난 세션이 정상 종료(beforeunload 완료)됐다면 복구 배너를 띄우지 않는다.
+        if (!wasUncleanShutdown) return;
         if (sessionStorage.getItem('autosave-restore-skip')) return;
         const saved = restore();
         if (saved?.html && saved.html.trim()) setAutoSaveData(saved);
