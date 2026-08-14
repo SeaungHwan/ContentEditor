@@ -132,9 +132,9 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
         classesRef.current = editorClasses || { tit1: 'tit1', tit2: 'tit2', tit3: 'tit3' };
         if (editorRef.current && editorRef.current.options?.controls?.paragraph) {
             editorRef.current.options.controls.paragraph.list = {
-                'h3': `${classesRef.current.tit1} (H3)`,
-                'h4': `${classesRef.current.tit2} (H4)`,
-                'h5': `${classesRef.current.tit3} (H5)`,
+                'h3': '대제목 (H3)',
+                'h4': '중제목 (H4)',
+                'h5': '소제목 (H5)',
             };
         }
     }, [editorClasses]);
@@ -251,7 +251,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             disableCleanFilter: new Set(['fillEmptyParagraph', 'removeEmptyTextNode', 'removeInvTextNodes', 'replaceOldTags', 'sanitizeAttributes', 'tryRemoveNode']),
         },
         
-        buttons: ['source', '|','paragraph', 'table', '|', 'undo', 'redo'],
+        buttons: ['source', '|','table', 'undo', 'redo'],
         // extraButtons: [toggleThButton],
         showXPathInStatusbar: false,
         showCharsCounter: false,
@@ -265,9 +265,9 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             beforeInit: (editor) => {
                 if (editor.options.controls.paragraph) {
                     editor.options.controls.paragraph.list = {
-                        'h3': `${classesRef.current.tit1} (H3)`,
-                        'h4': `${classesRef.current.tit2} (H4)`,
-                        'h5': `${classesRef.current.tit3} (H5)`,
+                        'h3': '대제목 (H3)',
+                        'h4': '중제목 (H4)',
+                        'h5': '소제목 (H5)',
                     };
                 }
             },
