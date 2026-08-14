@@ -36,7 +36,7 @@ import { getDOMParser } from './utils/htmlCleaners';
 import { processTextContentNormal, processTextContentColor } from './utils/textProcessor';
 import { processTableOnlyNormal, processTableOnlyColor } from './utils/tableProcessor';
 import { applyNestedClassesHelper } from './utils/listExtractors';
-import { convertCircleToArabic, MARKER_TYPES, EXCLUDE_MARKER_REGEXES, RE_WHITESPACE } from './utils/constants';
+import { convertCircleToArabic, MARKER_TYPES, EXCLUDE_MARKER_REGEXES, RE_WHITESPACE, PLACEHOLDER_IMAGE_SRC } from './utils/constants';
 
 export { updateStylesOnly } from './utils/styleUpdater';
 
@@ -265,13 +265,46 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
 
                     if (tdCells.length <= 1) {
                         flushTableGroup();
-                        const boxDiv = document.createElement('div');
-                        boxDiv.className = boxClass;
                         const cell = tdCells[0];
-                        if (cell) { while (cell.firstChild) boxDiv.appendChild(cell.firstChild); }
-                        else { boxDiv.innerHTML = t.innerHTML; }
-                        processText(boxDiv, config);
-                        resultWrapper.appendChild(boxDiv);
+                        const hasImage = !!cell && cell.querySelectorAll('img').length >= 1;
+                        // 셀이 정확히 1개고 그 안에 이미지 하나만 있는 표(텍스트/다른 요소 없음)는
+                        // 순수 이미지 박스로 치환한다. 실제 경로는 나중에 수작업으로 채울 예정이라
+                        // 더미(자리표시자) 이미지를 넣는다.
+                        const isImageOnlyCell = hasImage && tdCells.length === 1 &&
+                            cell.querySelectorAll('img').length === 1 &&
+                            cell.querySelectorAll('*').length === 1 &&
+                            cell.textContent.replace(RE_WHITESPACE, '') === '';
+                        // 이미지와 텍스트(또는 다른 요소)가 함께 있으면 원본 이미지는 그대로 두되,
+                        // <p class="rsp_img ac"><img></p>로 따로 감싸 맨 앞에 배치하고 나머지
+                        // 내용(텍스트 등)은 그 뒤에 그대로 붙인다. 바깥 div는 boxClass만 유지.
+                        const isImageWithOther = hasImage && !isImageOnlyCell;
+
+                        if (isImageOnlyCell) {
+                            const imgBoxDiv = document.createElement('div');
+                            imgBoxDiv.className = 'rsp_img ac';
+                            const img = document.createElement('img');
+                            img.src = PLACEHOLDER_IMAGE_SRC;
+                            img.alt = '';
+                            imgBoxDiv.appendChild(img);
+                            resultWrapper.appendChild(imgBoxDiv);
+                        } else {
+                            const boxDiv = document.createElement('div');
+                            boxDiv.className = boxClass;
+                            if (cell) {
+                                if (isImageWithOther) {
+                                    Array.from(cell.querySelectorAll('img')).forEach(img => {
+                                        const imgWrap = document.createElement('p');
+                                        imgWrap.className = 'rsp_img ac';
+                                        imgWrap.appendChild(img); // 원래 위치에서 옮겨져 이 p로 감싸짐
+                                        boxDiv.appendChild(imgWrap);
+                                    });
+                                }
+                                while (cell.firstChild) boxDiv.appendChild(cell.firstChild);
+                            }
+                            else { boxDiv.innerHTML = t.innerHTML; }
+                            processText(boxDiv, config);
+                            resultWrapper.appendChild(boxDiv);
+                        }
                     } else {
                         const clonedTable = t.cloneNode(true);
                         if (lCfg) clonedTable.setAttribute('data-local-config', lCfg);

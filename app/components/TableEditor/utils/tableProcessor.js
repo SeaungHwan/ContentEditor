@@ -210,7 +210,23 @@ const applyTableFormats = (container, config, colWidths) => {
                     processCellContent(cell, curKeepMarker, false, null, null, null, curOlType, noUl, noAtte, curNumClass);
                     applyNestedClassesHelper(cell, curUlClass, curListStartFrom2 ? 1 : 0, curOlClassName);
                 }
-                if (!cell.querySelector('table') && !cell.textContent.trim()) cell.innerHTML = '';
+
+                // 표 안 이미지는 위치와 상관없이 <p class="rsp_img ac">로 감싼다.
+                // 이미 그렇게 감싸져 있으면(재정리 등) 다시 감싸지 않는다.
+                Array.from(cell.querySelectorAll('img')).forEach(img => {
+                    const parent = img.parentElement;
+                    const alreadyWrapped = parent && parent.tagName === 'P' &&
+                        parent.classList.contains('rsp_img') && parent.classList.contains('ac') &&
+                        parent.childNodes.length === 1;
+                    if (alreadyWrapped) return;
+                    const wrap = document.createElement('p');
+                    wrap.className = 'rsp_img ac';
+                    img.parentNode.insertBefore(wrap, img);
+                    wrap.appendChild(img);
+                });
+
+                // img를 넣어도 textContent는 여전히 비어있으므로, table/img가 있는 셀은 비우지 않는다.
+                if (!cell.querySelector('table, img') && !cell.textContent.trim()) cell.innerHTML = '';
 
                 performCleanup(cell, curNumClass);
                 traverseAndClean(cell, isColorMode, isColorClassMode, linkClass, mailClass);

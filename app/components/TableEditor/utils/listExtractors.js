@@ -283,6 +283,17 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
             continue;
         }
 
+        // 이미지 전용 래퍼(rsp_img)는 텍스트가 없어 마커 감지 대상이 아니므로, 뒤의 일반
+        // P/DIV 정규화 경로(클래스를 버리고 새 <p>를 만드는 로직)를 타지 않고 그대로 보존한다.
+        if (node.nodeType === 1 && node.tagName === 'P' && node.classList.contains('rsp_img')) {
+            flushLastPara();
+            lastLi = null;
+            contextStack.length = 0;
+            lastBuAtte = null;
+            rootNodes.push(node);
+            continue;
+        }
+
         if (node.nodeType === 1 && (node.tagName === 'P' || node.tagName === 'DIV' || node.tagName === 'BR')) {
             openParenCount = 0;
             openBracketCount = 0;

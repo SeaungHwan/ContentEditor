@@ -10,6 +10,7 @@
 .jodit-wrapper {height: 100%;}
 .jodit-source__mirror-fake {font-family: 'Pretendard' !important;font-size: 14px !important;line-height: 1.2 !important;background-color: #1e1e1e !important; color: #d4d4d4 !important; }
 /* .jodit-toolbar-button__icon {width: 0.8rem;height: 0.8rem;} */
+.jodit-source {z-index:10;}
 .jodit-source * {font: 12px/ normal 'Pretendard' !important;}
 .jodit-source__mirror, 
 .jodit-source__mirror-editor,

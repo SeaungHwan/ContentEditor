@@ -57,6 +57,10 @@ export const RE_WHITESPACE = /[\s\u00A0\u200B-\u200D\uFEFF]/g;
 export const TEMP_ATTRS = ['data-local-config', 'data-local-colwidths', 'data-temp-id', 'data-origin-html', 'data-hcand-id', 'data-hconv-id'];
 export const TEMP_ATTRS_SELECTOR = TEMP_ATTRS.map(a => `[${a}]`).join(',');
 
+// 이미지 박스 치환(수동 버튼 + cleanTableHtml 자동 치환) 공용 더미 이미지.
+// 실제 경로는 나중에 수작업으로 채워 넣을 예정이라, 회색 사각형 SVG를 자리표시자로 쓴다.
+export const PLACEHOLDER_IMAGE_SRC = 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%23e9e9e9%22%2F%3E%3C%2Fsvg%3E';
+
 // ① ② ③ … ⑳ (U+2460–U+2473) 및 ㉑ … ㉟ (U+3251–U+325F) → 아라비아 숫자
 // 다양한 종류의 원문자 1~50 → 아라비아 숫자로 변환
 export const convertCircleToArabic = (str) => {

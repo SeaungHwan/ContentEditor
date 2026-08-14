@@ -7,7 +7,7 @@ import layout from "../../layout.module.css";
 import { cleanTableHtml, updateStylesOnly } from './cleanTableHtml';
 import TableConfigToolbar from './TableConfigToolbar';
 import TocPanel from './TocPanel';
-import { GUIDE_MESSAGES, formatColWidths, TEMP_ATTRS, TEMP_ATTRS_SELECTOR, RE_WHITESPACE } from './utils/constants';
+import { GUIDE_MESSAGES, formatColWidths, TEMP_ATTRS, TEMP_ATTRS_SELECTOR, RE_WHITESPACE, PLACEHOLDER_IMAGE_SRC } from './utils/constants';
 
 const AUTO_PASTE_KEY = 'table-editor-auto-paste';
 
@@ -623,8 +623,10 @@ function TableEditor({ initialHtml = '', onChange }) {
 
         const boxClass = (config.boxClassName && config.boxClassName.trim()) || 'box_st2';
         const newNode = document.createElement('div');
-        newNode.className = `${boxClass} rsp_img ac`;
-        newNode.innerHTML = '\n    <img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20fill%3D%22%23e9e9e9%22%2F%3E%3C%2Fsvg%3E" alt="">\n';
+        // 이미지만 있는 셀(이 버튼은 canReplaceWithImageBox가 참일 때만 눌리므로 항상 이 경우)은
+        // boxClass 없이 rsp_img ac만 적용한다. boxClass는 이미지+텍스트가 섞인 경우에만 붙는다.
+        newNode.className = 'rsp_img ac';
+        newNode.innerHTML = `\n    <img src="${PLACEHOLDER_IMAGE_SRC}" alt="">\n`;
 
         // 'tbl_st'는 실제 기본 wrapperClassName(TableConfigContext.jsx)과 일치해야 wrapper div를 찾을 수 있다.
         // 이전에는 'tbl-st'(하이픈)로 오타가 나 있어 정상 래핑된 표에서 항상 매칭에 실패했다.
@@ -923,10 +925,12 @@ function TableEditor({ initialHtml = '', onChange }) {
                                     <button type="button" onClick={handleEqualColWidths} className={`${layout.Btn}${isEqualColWidths ? ` ${layout.BtnOn}` : ''}`} title={isEqualColWidths ? "열 너비 균등 분할 해제" : "열 너비 균등 분할"}>
                                         <i className="ri-layout-column-line"></i>
                                     </button>
-                                    {/* 이미지 박스 치환: 셀 1개에 img만 있는 표가 아니면 정보 손실을 막기 위해 비활성화 */}
-                                    <button type="button" onClick={handleReplaceWithImageBox} disabled={!canReplaceWithImageBox} className={layout.Btn} title={canReplaceWithImageBox ? "표를 이미지 박스로 치환" : "셀 1개에 이미지만 있는 표만 이미지 박스로 치환할 수 있습니다"}>
-                                        <i className="ri-image-line"></i>
-                                    </button>
+                                    {/* 이미지 박스 치환: 셀 1개에 img만 있는 표일 때만 노출 (정보 손실 방지) */}
+                                    {canReplaceWithImageBox && (
+                                        <button type="button" onClick={handleReplaceWithImageBox} className={layout.Btn} title="표를 이미지 박스로 치환">
+                                            <i className="ri-image-line"></i>
+                                        </button>
+                                    )}
                                     {/* 기존: 개별 표 설정 */}
                                     <button type="button" onClick={handleExternalTableEdit} className={`${layout.Btn} ${isGuideMode ? `${layout.guideTarget} ${layout.guideLeft}` : ''}`} data-guide={isGuideMode ? GUIDE_MESSAGES.tableBtn : undefined} title="개별 표 설정">
                                         <i className="ri-settings-4-line"></i>

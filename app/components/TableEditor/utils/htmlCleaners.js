@@ -237,7 +237,8 @@ const _mergeAdjacentInlines = (container, numClass = 'num') => {
 export const performCleanup = (container, numClass = 'num') => {
 
     if (container.tagName === 'TD' || container.tagName === 'TH') {
-        const pList = Array.from(container.querySelectorAll('p')).filter(p => !p.classList.contains('bu_atte'));
+        // rsp_img(이미지 전용 래퍼)도 bu_atte처럼 구조를 유지해야 하므로 언랩 대상에서 제외한다.
+        const pList = Array.from(container.querySelectorAll('p')).filter(p => !p.classList.contains('bu_atte') && !p.classList.contains('rsp_img'));
         if (pList.length > 0) {
             pList.forEach((p, idx) => { if (idx < pList.length - 1) p.after(document.createElement('br')); });
             pList.forEach(p => p.replaceWith(...p.childNodes));

@@ -48,6 +48,13 @@ const BEAUTIFY_OPTIONS = {
 
 const HEADING_TAGS = new Set(['H2', 'H3', 'H4', 'H5']);
 
+// Jodit.atom()과 동일한 효과 — 중첩 옵션의 배열을 완전 대체로 표시해, ConfigProto 병합이
+// 우리 배열 뒤에 Jodit 기본값 나머지를 이어붙이지 않게 한다.
+const atom = (arr) => {
+    Object.defineProperty(arr, 'isAtom', { value: true, enumerable: false, configurable: false });
+    return arr;
+};
+
 // Jodit의 다중 셀 선택은 실제 DOM에 클래스를 남기지 않고, 선택된 셀들의 cssPath를
 // 모아 동적 <style class="jodit jodit-table-container jodit-box"> 태그로만 표시한다
 // (node_modules/jodit/esm/modules/table/table.js의 __recalculateStyles). toggleTh
@@ -153,6 +160,70 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             h5: classesRef.current.tit3 || '',
         });
 
+        // 툴바(extraButtons)와 표 셀 팝업(popup.cells) 양쪽에서 재사용
+        const toggleThButton = {
+            name: 'toggleTh',
+            icon: 'th',
+            tooltip: 'TD/TH 전환',
+            exec: (editor) => {
+                try {
+                    // 에디터에 테이블이 없으면 즉시 안내 후 종료
+                    if (!editor.editor.querySelector('table')) {
+                        handlersRef.current.triggerToast?.('테이블 셀(TD/TH) 내부를 선택해주세요.');
+                        return;
+                    }
+
+                    let selectedCells = getSelectedTableCells(editor);
+
+                    if (selectedCells.length === 0) {
+                        const current = editor.s.current();
+                        if (current) {
+                            const target = current.nodeType === 3 ? current.parentElement : current;
+                            const cell = target.closest('td, th');
+                            // 에디터 영역 내부 셀인지 반드시 확인
+                            if (cell && editor.editor.contains(cell)) selectedCells = [cell];
+                        }
+                    }
+
+                    if (selectedCells.length === 0) {
+                        handlersRef.current.triggerToast?.('테이블 셀(TD/TH) 내부를 선택해주세요.');
+                        return;
+                    }
+
+                    const tableModule = editor.getInstance('Table', editor.o);
+
+                    let lastNewCell = null;
+                    selectedCells.forEach(cell => {
+                        const newTagName = cell.tagName.toLowerCase() === 'td' ? 'th' : 'td';
+                        const newCell = editor.create.element(newTagName);
+                        newCell.innerHTML = cell.innerHTML;
+
+                        Array.from(cell.attributes).forEach(attr => {
+                            newCell.setAttribute(attr.name, attr.value);
+                        });
+
+                        // Jodit의 다중 셀 선택(Table.selected)이 교체로 사라질 옛 셀을
+                        // 계속 들고 있으면, 팝업이 닫히며 그 상태를 정리하다가 초점이
+                        // 엉뚱한 행으로 튀는 버그가 있었다. 교체 전에 미리 제거한다.
+                        tableModule?.removeSelection?.(cell);
+
+                        cell.replaceWith(newCell);
+                        lastNewCell = newCell;
+                    });
+
+                    // setCursorIn 전에 노드가 에디터 내에 있는지 확인
+                    if (lastNewCell && editor.editor.contains(lastNewCell)) {
+                        editor.s.setCursorIn(lastNewCell);
+                    }
+                    if (handlersRef.current.onChange) handlersRef.current.onChange(editor.value);
+                    editor.e.fire('hidePopup');
+
+                } catch (e) {
+                    console.error("TD/TH 전환 중 오류 발생:", e);
+                }
+            }
+        };
+
         return ({
         readonly: false,
         height: '100%',
@@ -163,6 +234,14 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
         useAceEditor: false,
         sourceEditor: 'area',
         toolbarInlineForSelection: true,
+        popup: {
+            // Jodit의 옵션 병합(ConfigProto)은 중첩된 배열을 완전 대체하지 않고 "우리 배열 +
+            // 남는 기본값 나머지"로 이어붙인다. atom()으로 표시해야 완전히 대체된다.
+            selection: atom(['paragraph', 'bold', 'underline','fontsize', 'brush','\n','ul', 'ol', 'link', 'align', 'dots']),
+            // popup.cells는 여기서 건드리지 않는다 — config 병합 단계에서 재정의하면 셀
+            // 병합이 깨지고 i18n이 안 먹는 회귀가 있었다. 대신 afterInit에서 Jodit이
+            // 이미 만들어둔 정상 배열의 valign 항목만 직접 교체한다.
+        },
         allowResizeX: false,
         allowResizeY: false,
         cleanHTML: {
@@ -173,62 +252,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
         },
         
         buttons: ['source', '|','paragraph', 'table', '|', 'undo', 'redo'],
-        extraButtons: [
-            {
-                name: 'toggleTh',
-                icon: 'th',
-                tooltip: 'TD/TH 전환',
-               exec: (editor) => {
-                    try {
-                        // 에디터에 테이블이 없으면 즉시 안내 후 종료
-                        if (!editor.editor.querySelector('table')) {
-                            handlersRef.current.triggerToast?.('테이블 셀(TD/TH) 내부를 선택해주세요.');
-                            return;
-                        }
-
-                        let selectedCells = getSelectedTableCells(editor);
-
-                        if (selectedCells.length === 0) {
-                            const current = editor.s.current();
-                            if (current) {
-                                const target = current.nodeType === 3 ? current.parentElement : current;
-                                const cell = target.closest('td, th');
-                                // 에디터 영역 내부 셀인지 반드시 확인
-                                if (cell && editor.editor.contains(cell)) selectedCells = [cell];
-                            }
-                        }
-
-                        if (selectedCells.length === 0) {
-                            handlersRef.current.triggerToast?.('테이블 셀(TD/TH) 내부를 선택해주세요.');
-                            return;
-                        }
-
-                        let lastNewCell = null;
-                        selectedCells.forEach(cell => {
-                            const newTagName = cell.tagName.toLowerCase() === 'td' ? 'th' : 'td';
-                            const newCell = editor.create.element(newTagName);
-                            newCell.innerHTML = cell.innerHTML;
-
-                            Array.from(cell.attributes).forEach(attr => {
-                                newCell.setAttribute(attr.name, attr.value);
-                            });
-
-                            cell.replaceWith(newCell);
-                            lastNewCell = newCell;
-                        });
-
-                        // setCursorIn 전에 노드가 에디터 내에 있는지 확인
-                        if (lastNewCell && editor.editor.contains(lastNewCell)) {
-                            editor.s.setCursorIn(lastNewCell);
-                        }
-                        if (handlersRef.current.onChange) handlersRef.current.onChange(editor.value);
-
-                    } catch (e) {
-                        console.error("TD/TH 전환 중 오류 발생:", e);
-                    }
-                }
-            },
-        ],
+        // extraButtons: [toggleThButton],
         showXPathInStatusbar: false,
         showCharsCounter: false,
         showWordsCounter: false,
@@ -333,6 +357,29 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                 editorRef.current = instance;
                 if (initialHtmlRef.current) {
                     instance.value = initialHtmlRef.current;
+                }
+
+                // 표 셀 팝업의 valign 버튼을 toggleTh로 교체. config.popup.cells를 직접
+                // 재정의하면 병합 병합/i18n이 깨지는 회귀가 있어서, Jodit이 정상적으로
+                // 만들어둔 배열을 그대로 두고 항목 하나만 바꿔치기한다.
+                const cells = instance.options?.popup?.cells;
+                if (Array.isArray(cells)) {
+                    const getName = (item) => (typeof item === 'string' ? item : item?.name);
+                    const valignIndex = cells.findIndex(item => getName(item) === 'valign');
+                    if (valignIndex !== -1) {
+                        cells.splice(valignIndex, 1, toggleThButton);
+                    } else if (!cells.some(item => getName(item) === 'toggleTh')) {
+                        cells.push(toggleThButton);
+                    }
+
+                    // 버튼 순서 재배치: 1행에 4개(TD/TH 전환·정렬·분할·병합), 2행에 4개
+                    // (열삽입·행삽입·배경색 변경·삭제) — 배경색 변경은 삭제 버튼 바로 앞
+                    const desiredOrder = ['toggleTh', 'align', 'splitv', 'merge', '\n', 'addcolumn', 'addrow', 'brushCell', 'delete'];
+                    const byName = new Map(cells.map(item => [getName(item), item]));
+                    const reordered = desiredOrder.map(name => byName.get(name)).filter(Boolean);
+                    if (reordered.length === cells.length) {
+                        cells.splice(0, cells.length, ...reordered);
+                    }
                 }
 
                 const handleNativePaste = (e) => {
