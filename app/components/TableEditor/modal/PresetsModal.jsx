@@ -5,6 +5,7 @@ import { useModalDrag } from '../hooks/useModalDrag';
 export default function PresetsModal({ onClose, onApply, onSave, onDelete, presets, layout, fadeStyle }) {
     const [newName, setNewName] = useState('');
     const [error, setError] = useState('');
+    const [selectedName, setSelectedName] = useState(null);
     const { dragStyle, handleDragStart, modalRef } = useModalDrag();
 
     useEffect(() => {
@@ -22,15 +23,23 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
         setError('');
     };
 
+    const handleSelect = (name) => {
+        setSelectedName(prev => prev === name ? null : name);
+    };
+
+    const handleApply = () => {
+        const selected = presets.find(p => p.name === selectedName);
+        if (!selected) return;
+        onApply(selected.config);
+        onClose();
+    };
+
     return (
         <div className={layout.modalPopWrap} style={fadeStyle}>
             <div ref={modalRef} className={layout.modalContentBox} style={dragStyle}>
-                <div className={layout.modalTitle} onMouseDown={handleDragStart}>
+                <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
                     <span>프리셋</span>
-                    <button type="button" onClick={onClose} className={layout.guideBtn}>
-                        <i className="ri-close-line" />
-                    </button>
-                </div>
+                </h2>
 
                 <div className={layout.modalBody}>
                     {presets.length === 0 ? (
@@ -38,17 +47,23 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
                     ) : (
                         <div className={layout.presetList}>
                             {presets.map(p => (
-                                <div key={p.name} className={layout.presetRow}>
+                                <div
+                                    key={p.name}
+                                    className={`${layout.presetRow} ${p.name === selectedName ? layout.presetRowActive : ''}`}
+                                    onClick={() => handleSelect(p.name)}
+                                >
                                     <span className={layout.presetName}>
                                         {p.locked && <i className={`ri-lock-fill ${layout.presetLockIcon}`} />}
                                         {p.name}
                                     </span>
                                     <div className={layout.presetActions}>
-                                        <button type="button" className={`${layout.applyBtn} ${layout.blue} ${layout.presetSmBtn}`} onClick={() => { onApply(p.config); onClose(); }}>
-                                            적용
-                                        </button>
                                         {!p.locked && (
-                                            <button type="button" className={layout.presetDelBtn} onClick={() => onDelete(p.name)} title="삭제">
+                                            <button
+                                                type="button"
+                                                className={layout.presetDelBtn}
+                                                onClick={(e) => { e.stopPropagation(); onDelete(p.name); }}
+                                                title="삭제"
+                                            >
                                                 <i className="ri-delete-bin-6-line" />
                                             </button>
                                         )}
@@ -75,6 +90,11 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
                         </div>
                         {error && <span className={layout.presetError}>{error}</span>}
                     </div>
+                </div>
+
+                <div className={layout.modalFooter}>
+                    <button type="button" className={layout.cancelBtn} onClick={onClose} title="닫기">닫기</button>
+                    <button type="button" className={`${layout.applyBtn} ${layout.blue}`} onClick={handleApply} disabled={!selectedName} title="선택한 프리셋 적용">적용</button>
                 </div>
             </div>
         </div>
