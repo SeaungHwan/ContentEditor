@@ -108,6 +108,12 @@ export default function useModals() {
     }, [visibleModals]);
 
     const openTableEditModal = useCallback((html, tempId, existingConfig, existingColWidths) => {
+        // 직전 닫기에서 예약된 데이터 초기화 타이머가 남아있으면, 지금 막 설정한
+        // tableEditData가 뒤늦게 초기화되지 않도록 먼저 취소한다.
+        if (timersRef.current.tableEditDataCleanup) {
+            clearTimeout(timersRef.current.tableEditDataCleanup);
+            delete timersRef.current.tableEditDataCleanup;
+        }
         setTableEditData({ html, tempId, existingConfig, existingColWidths });
         toggleModal('tableEdit', true);
     }, [toggleModal]);

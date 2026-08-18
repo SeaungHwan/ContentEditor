@@ -100,6 +100,10 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
     const statsDebounceRef = useRef(null);
     const tableSelectDebounceRef = useRef(null);
     const htmlBeautifyRef = useRef(null);
+    // afterInit에서 등록하는 리스너들 — 언마운트 시 정확히 짝을 맞춰 제거하기 위해 참조를 보관한다.
+    const pasteHandlerRef = useRef(null);
+    const beforeInputHandlerRef = useRef(null);
+    const blockSyncHandlerRef = useRef(null);
     // 초기 콘텐츠를 고정 300ms 타이머로 주입하면, jodit-react의 동적 임포트/초기화(afterInit)가
     // 느린 기기·네트워크에서 300ms보다 늦게 끝날 때 editorRef.current가 아직 null이라 조용히
     // 씹혀버리는 경쟁 상태가 있었다. afterInit이 실제로 완료되는 시점에 값을 직접 읽어 쓰도록
@@ -125,6 +129,17 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
             titObserverRef.current?.disconnect();
             clearTimeout(statsDebounceRef.current);
             clearTimeout(tableSelectDebounceRef.current);
+            // afterInit에서 캡처 단계로 등록한 리스너들을 짝을 맞춰 제거한다.
+            const instance = editorRef.current;
+            if (instance?.editor) {
+                if (pasteHandlerRef.current) instance.editor.removeEventListener('paste', pasteHandlerRef.current, true);
+                if (beforeInputHandlerRef.current) instance.editor.removeEventListener('beforeinput', beforeInputHandlerRef.current, true);
+            }
+            if (instance?.container && blockSyncHandlerRef.current) {
+                instance.container.removeEventListener('mousedown', blockSyncHandlerRef.current, true);
+                instance.container.removeEventListener('mouseup', blockSyncHandlerRef.current, true);
+                instance.container.removeEventListener('click', blockSyncHandlerRef.current, true);
+            }
         };
     }, []);
 
@@ -387,14 +402,17 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                         pendingAutoPasteRef.current = true;
                     }
                 };
+                // 브라우저 네이티브 contenteditable 자동 리스트 변환 차단
+                const handleBeforeInput = (e) => {
+                    if (e.inputType === 'insertOrderedList' || e.inputType === 'insertUnorderedList') {
+                        e.preventDefault();
+                    }
+                };
+                pasteHandlerRef.current = handleNativePaste;
+                beforeInputHandlerRef.current = handleBeforeInput;
                 if (instance.editor) {
                     instance.editor.addEventListener('paste', handleNativePaste, true);
-                    // 브라우저 네이티브 contenteditable 자동 리스트 변환 차단
-                    instance.editor.addEventListener('beforeinput', (e) => {
-                        if (e.inputType === 'insertOrderedList' || e.inputType === 'insertUnorderedList') {
-                            e.preventDefault();
-                        }
-                    }, true);
+                    instance.editor.addEventListener('beforeinput', handleBeforeInput, true);
                 }
 
                 const applyTitClasses = (mutations) => {
@@ -438,6 +456,7 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                         e.stopPropagation();
                     }
                 };
+                blockSyncHandlerRef.current = blockJoditSyncBug;
 
                 if (instance.container) {
                     instance.container.addEventListener('mousedown', blockJoditSyncBug, true);

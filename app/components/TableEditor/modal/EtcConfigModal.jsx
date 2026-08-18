@@ -23,9 +23,9 @@ import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
 export default function EtcConfigModal({ onClose, onApply, globalConfig, layout, isGuideMode, setIsGuideMode, fadeStyle }) {
-    const [localConfig, setLocalConfig] = useState(globalConfig ? { ...globalConfig } : {});
+    const [localConfig, setLocalConfig] = useState(() => globalConfig ? { ...globalConfig } : {});
     const [activeDropdown, setActiveDropdown] = useClickOutsideDropdown();
-    const { dragStyle, handleDragStart } = useModalDrag();
+    const { dragStyle, handleDragStart, modalRef } = useModalDrag();
 
     useEffect(() => {
         const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
@@ -41,7 +41,7 @@ export default function EtcConfigModal({ onClose, onApply, globalConfig, layout,
     };
 
     return (
-        <div className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
+        <div ref={modalRef} className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
                 <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
                     <span>기타 설정<em>ㅣ박스·링크·메일 클래스 변경</em></span>
                     <button type="button" data-guide-toggle="true" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>

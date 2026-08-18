@@ -5,7 +5,7 @@ import { useModalDrag } from '../hooks/useModalDrag';
 export default function PresetsModal({ onClose, onApply, onSave, onDelete, presets, layout, fadeStyle }) {
     const [newName, setNewName] = useState('');
     const [error, setError] = useState('');
-    const { dragStyle, handleDragStart } = useModalDrag();
+    const { dragStyle, handleDragStart, modalRef } = useModalDrag();
 
     useEffect(() => {
         const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
@@ -24,7 +24,7 @@ export default function PresetsModal({ onClose, onApply, onSave, onDelete, prese
 
     return (
         <div className={layout.modalPopWrap} style={fadeStyle}>
-            <div className={layout.modalContentBox} style={dragStyle}>
+            <div ref={modalRef} className={layout.modalContentBox} style={dragStyle}>
                 <div className={layout.modalTitle} onMouseDown={handleDragStart}>
                     <span>프리셋</span>
                     <button type="button" onClick={onClose} className={layout.guideBtn}>

@@ -44,8 +44,8 @@ const extractRGB = (colorStr) => {
     
     const namedColors = {
         gray: [128, 128, 128], black: [0, 0, 0], blue: [0, 0, 255], red: [255, 0, 0],
-        navy: [0, 0, 128], org: [255, 165, 0], green: [0, 128, 0], yellow: [255, 255, 0],
-        pur: [128, 0, 128], sky: [135, 206, 235], pink: [255, 192, 203], white: [255, 255, 255] 
+        navy: [0, 0, 128], orange: [255, 165, 0], green: [0, 128, 0], yellow: [255, 255, 0],
+        purple: [128, 0, 128], skyblue: [135, 206, 235], pink: [255, 192, 203], white: [255, 255, 255]
     };
     return namedColors[str] || null;
 };

@@ -26,6 +26,7 @@
     "@types/js-beautify": "^1.14.3",
     "@types/node": "25.9.1",
     "@types/react": "19.2.10",
+    "playwright": "^1.62.1",
     "typescript": "5.9.3"
   }
 }

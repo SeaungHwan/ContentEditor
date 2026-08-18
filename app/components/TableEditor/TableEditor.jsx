@@ -854,6 +854,16 @@ function TableEditor({ initialHtml = '', onChange }) {
         toggleModal('preview', true);
     }, [toggleModal]);
 
+    // PreviewModal/GuideModal은 React.memo인데, onClose를 인라인 화살표로 넘기면 매 렌더
+    // 새 참조가 생겨 memo가 무력화된다. useCallback으로 고정해 memo가 실제로 동작하게 한다.
+    const handlePreviewClose = useCallback(() => {
+        toggleModal('preview', false);
+    }, [toggleModal]);
+
+    const handleGuideClose = useCallback(() => {
+        toggleModal('guide', false);
+    }, [toggleModal]);
+
     const handleGlobalTableConfigApply = useCallback((newConfig, newColWidths) => {
         updateMultipleConfig(newConfig);
         setColWidths(newColWidths);
@@ -973,8 +983,8 @@ function TableEditor({ initialHtml = '', onChange }) {
 
             {isGuideMode && <div className={layout.guideWrap}/>}
             {toast.show && <div key={toast.id} className="toast-popup">{toast.message}</div>}
-            {modals.preview && <PreviewModal content={content} config={config} widthString={formattedWidthString} onClose={() => toggleModal('preview', false)} layout={layout} fadeStyle={getFadeStyle('preview')} />}
-            {modals.guide && <GuideModal onClose={() => toggleModal('guide', false)} layout={layout} fadeStyle={getFadeStyle('guide')} />}
+            {modals.preview && <PreviewModal content={content} config={config} widthString={formattedWidthString} onClose={handlePreviewClose} layout={layout} fadeStyle={getFadeStyle('preview')} />}
+            {modals.guide && <GuideModal onClose={handleGuideClose} layout={layout} fadeStyle={getFadeStyle('guide')} />}
 
             {modals.tableEdit && (
                 <TableEditModal

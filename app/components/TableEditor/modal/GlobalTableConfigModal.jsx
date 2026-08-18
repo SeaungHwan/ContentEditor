@@ -33,10 +33,10 @@ import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
 export default function GlobalTableConfigModal({ onClose, onApply, globalConfig, colWidths, layout, isGuideMode, setIsGuideMode, fadeStyle }) {
-    const [localConfig, setLocalConfig] = useState({ ...globalConfig });
-    const [localColWidths, setLocalColWidths] = useState([...colWidths]);
+    const [localConfig, setLocalConfig] = useState(() => ({ ...globalConfig }));
+    const [localColWidths, setLocalColWidths] = useState(() => [...colWidths]);
     const [activeDropdown, setActiveDropdown] = useClickOutsideDropdown();
-    const { dragStyle, handleDragStart } = useModalDrag();
+    const { dragStyle, handleDragStart, modalRef } = useModalDrag();
 
     useEffect(() => {
         const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
@@ -58,7 +58,7 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
     };
 
     return (
-        <div className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
+        <div ref={modalRef} className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
                 <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
                     <span>테이블 설정<em>ㅣ 테이블 맞춤 옵션 변경</em></span>
 

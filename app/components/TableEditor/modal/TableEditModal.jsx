@@ -39,12 +39,12 @@ import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
 export default function TableEditModal({ onClose, onApply, globalConfig, layout, existingConfig, existingColWidths, fadeStyle }) {
-    const [localConfig, setLocalConfig] = useState(existingConfig || { ...globalConfig });
+    const [localConfig, setLocalConfig] = useState(() => existingConfig || { ...globalConfig });
     // ColWidthControl은 ['auto-calc']만 "자동 계산" 모드로 인식하고, 그 외 값은 전부 수동 입력값으로 취급한다.
     // 전역 기본값(TableEditor.jsx의 초기 colWidths)과 동일하게 빈 문자열 1칸(= 지정 안 함)을 기본값으로 쓴다.
-    const [colWidths, setColWidths] = useState(existingColWidths || ['']);
+    const [colWidths, setColWidths] = useState(() => existingColWidths || ['']);
     const [activeDropdown, setActiveDropdown] = useClickOutsideDropdown();
-    const { dragStyle, handleDragStart } = useModalDrag();
+    const { dragStyle, handleDragStart, modalRef } = useModalDrag();
 
     useEffect(() => {
         const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
@@ -67,7 +67,7 @@ export default function TableEditModal({ onClose, onApply, globalConfig, layout,
     };
 
     return (
-        <div className={layout.modalContentBox} style={{ ...dragStyle, ...fadeStyle }}>
+        <div ref={modalRef} className={layout.modalContentBox} style={{ ...dragStyle, ...fadeStyle }}>
                 <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
                     <span>테이블 설정<em>ㅣ 테이블 개별 옵션 변경</em></span>
                 </h2>

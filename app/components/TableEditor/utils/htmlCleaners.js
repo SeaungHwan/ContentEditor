@@ -46,6 +46,10 @@
 import { ALLOWED_TAGS, ALLOWED_ATTRIBUTES, CLEANUP_REGEX } from './constants';
 import { mapColorToClass } from './colorUtils';
 
+// 텍스트 노드마다 재컴파일하지 않도록 모듈 상수로 호이스트.
+// test()/exec() 호출부에서 매번 lastIndex를 명시적으로 관리하므로 공유해도 안전하다.
+const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
+
 let sharedDOMParser = null;
 export const getDOMParser = () => {
     if (typeof window === 'undefined') return null;
@@ -68,7 +72,6 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
             }
             const parentTag = element.tagName ? element.tagName.toLowerCase() : '';
             if (parentTag !== 'a' && mailClassName) {
-                const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
                 const text = node.textContent;
                 if (EMAIL_RE.test(text)) {
                     EMAIL_RE.lastIndex = 0;

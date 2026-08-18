@@ -20,8 +20,10 @@
  *     - th 셀 전용. ul/ol/li를 <br> 구분 텍스트로 풀어내고 bu_atte 클래스를 제거해
  *       th 내부에 리스트/bu_atte 구조가 절대 남지 않도록 한다.
  *
- *   processCellContent(cell, keepMarker, isOuterText, tit1, tit2, tit3, olType, noUl, noAtte, numClass)
+ *   processCellContent(cell, keepMarker, isOuterText, tit1, tit2, tit3, olType, noUl, noAtte, numClass, boxClassName)
  *     - cell의 childNodes를 순회하며 마커 패턴에 따라 ul/ol/li로 구조화한다.
+ *     - boxClassName을 넘기면, 그 클래스를 가진 DIV(중첩 표를 boxClass로 치환한 결과 등)는
+ *       테이블 wrapper DIV와 동일하게 풀어헤치지 않고 그대로 보존한다.
  *     - 처리 우선순위:
  *       1. H1~H6 태그 → 그대로 유지, 스택 초기화
  *       2. 법령 형식(제n장/편/조) 또는 tit 매칭 → p 태그로 감싸 컨텍스트 차단
@@ -124,11 +126,15 @@ export const flattenHeaderCell = (cell, numClass = 'num') => {
         list.replaceWith(frag);
     }
     const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : 'num';
-    cell.querySelectorAll(`span.${safeNumClass}`).forEach(span => span.replaceWith(...span.childNodes));
+    // safeNumClass는 사용자가 설정 모달에 자유 입력한 클래스명이라, 공백/따옴표 등이 섞이면
+    // 셀렉터 문법 오류(DOMException)로 전체 정리 파이프라인이 중단될 수 있어 방어한다.
+    try {
+        cell.querySelectorAll(`span.${safeNumClass}`).forEach(span => span.replaceWith(...span.childNodes));
+    } catch (e) {}
     cell.querySelectorAll('p.bu_atte').forEach(p => p.classList.remove('bu_atte'));
 };
 
-export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = 'num') => {
+export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = 'num', boxClassName = null) => {
     // 빈 문자열/미지정 시 'num'으로 폴백: 클래스가 완전히 없어지면 traverseAndClean이
     // class/style 없는 span을 unwrap하면서 번호 span 자체가 사라지므로 반드시 값이 있어야 한다.
     const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : 'num';
@@ -176,7 +182,12 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
     const normalizeBrBlocks = (container) => {
         // UL/OL: LI 안에 <br> + 마커가 있으면 개별 <p>로 언래핑
         Array.from(container.querySelectorAll('ul, ol')).forEach(list => {
-            const lis = Array.from(list.querySelectorAll('li'));
+            // list.querySelectorAll('li')는 중첩된 하위 리스트의 li까지 전부 가져온다. 하위 리스트는
+            // 이 바깥 container.querySelectorAll('ul, ol') 스캔에서 자기 차례에 독립적으로 처리되므로,
+            // 여기서는 이 list의 직계 li만 다뤄야 한다. 그렇지 않으면 아래 lis.forEach가 하위 리스트의
+            // li들까지 별도로 <p>로 다시 풀어내면서, segmentByBr(부모 li)가 이미 통째로 clone해 넣은
+            // 하위 리스트 내용과 중복(두세 배로 반복 출력)된다.
+            const lis = Array.from(list.children).filter(c => c.tagName === 'LI');
             const needsUnwrap = lis.some(li => {
                 const hasBr = Array.from(li.childNodes).some(c => c.nodeType === 1 && c.tagName === 'BR');
                 return hasBr && INLINE_MARKER_RE.test((li.textContent || '').trim());
@@ -336,6 +347,17 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
 
         if (isBuAtte && !isInsideParen) {
             flushLastPara();
+            // 중첩 테이블을 포함한 wrapper는 p로 감싸거나 언래핑하면 <table>이 <p> 안에 들어가
+            // 구조가 깨지므로, 마커 기반 변환을 건너뛰고 그대로 보존한다 (아래 564번 줄과 동일 가드)
+            const isBuAtteTableWrapper = node.nodeType === 1 && node.tagName === 'DIV' &&
+                (node.querySelector('table') || (boxClassName && node.classList.contains(boxClassName)));
+            if (isBuAtteTableWrapper) {
+                rootNodes.push(node);
+                lastLi = null;
+                contextStack.length = 0;
+                lastBuAtte = null;
+                continue;
+            }
             if (noAtte) {
                 // bu_atte 변환 비활성화: 리스트 컨텍스트 유지하며 연속 텍스트로 처리
                 const p = document.createElement('p');
@@ -494,6 +516,15 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
 
             // noUl: ul로 변환될 항목은 p 태그로 유지 (마커 문자 그대로 보존)
             if (noUl && targetTagName === 'ul') {
+                // 중첩 테이블을 포함한 wrapper를 p로 감싸면 구조가 깨지므로 그대로 보존한다 (564번 줄과 동일 가드)
+                const isNoUlTableWrapper = node.nodeType === 1 && node.tagName === 'DIV' &&
+                    (node.querySelector('table') || (boxClassName && node.classList.contains(boxClassName)));
+                if (isNoUlTableWrapper) {
+                    rootNodes.push(node);
+                    lastLi = null;
+                    contextStack.length = 0;
+                    continue;
+                }
                 const p = document.createElement('p');
                 const childrenToMove = isBlockElement ? node.childNodes : [node];
                 Array.from(childrenToMove).forEach(cn => p.appendChild(cn));
@@ -561,7 +592,8 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
         } else {
             if (cleanTextForBreak) lastBuAtte = null; // 일반 텍스트가 나오면 연결을 끊습니다.
             
-            const isTableWrapper = node.tagName === 'DIV' && node.querySelector('table');
+            const isTableWrapper = node.tagName === 'DIV' &&
+                (node.querySelector('table') || (boxClassName && node.classList.contains(boxClassName)));
             if (lastLi) {
                 flushLastPara();
                 if (isTableWrapper) {

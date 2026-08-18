@@ -91,6 +91,9 @@ function configReducer(state, action) {
             return { ...state, ...action.payload };
         }
         case 'SET_TABLE_TYPE':
+            // 실제로 바뀌는 값이 없으면(타입 동일 + 이미 헤더 1/1) 새 객체를 만들지 않아
+            // 이 상태를 구독하는 모든 소비자의 불필요한 리렌더를 막는다.
+            if (state.tableType === action.value && state.headerRows === 1 && state.headerCols === 1) return state;
             return {
                 ...state,
                 tableType: action.value,

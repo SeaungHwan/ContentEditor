@@ -189,6 +189,21 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
     const parser = getDOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
 
+    // 문서 전체가 래퍼 div 하나로만 감싸져 있으면(예: 원본 페이지의 <div id="content">에
+    // 문서 전체(제목/여러 표/리스트 등)를 통째로 붙여넣은 경우), 아래 최상위 순회 루프는
+    // doc.body의 자식이 이 래퍼 하나뿐이라고 인식한다. 그 래퍼 안에 표가 하나라도 있으면
+    // "표 1개짜리 단순 wrapper"로 오인해, 래퍼 안의 나머지 모든 형제 콘텐츠(다른 제목/표/
+    // 리스트)를 전부 누락시켜버리는 심각한 버그가 있었다. 래퍼가 실제로는 의미 있는 자식을
+    // 2개 이상 담고 있다면(= 단순 표 wrapper가 아니라 문서 전체의 컨테이너라면), 그 자식들을
+    // doc.body의 최상위로 끌어올려(펼쳐) 각각 원래 의도대로 독립적인 최상위 블록으로 분류되게 한다.
+    while (doc.body.children.length === 1 && doc.body.children[0].tagName === 'DIV') {
+        const onlyChild = doc.body.children[0];
+        const meaningfulChildren = Array.from(onlyChild.children).filter(c => !isMeaninglessNode(c));
+        if (meaningfulChildren.length <= 1) break;
+        while (onlyChild.firstChild) doc.body.appendChild(onlyChild.firstChild);
+        onlyChild.remove();
+    }
+
     const resultWrapper = document.createElement('div');
     let currentTextGroup = document.createElement('div');
     let currentTableGroup = document.createElement('div');
@@ -238,10 +253,17 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
 
                 // 테이블이 node의 직접/1단계 자식인 단순 래퍼인지 확인
                 // (예: <div class="tbl_st"><table> 또는 <table>)
-                // 아닌 경우: <div><ul><li><div><table> 같은 복잡한 중첩 구조
-                const isSimpleWrapper = node.tagName === 'TABLE' ||
+                // 아닌 경우: <div><ul><li><div><table> 같은 복잡한 중첩 구조,
+                // 또는 표의 부모 안에 캡션 문단 등 다른 요소가 함께 있는 경우
+                // (단순 래퍼로 취급하면 아래 tablesToProcess가 TABLE만 골라내 그 외 요소가 소실되므로,
+                // 그런 경우는 복잡 구조 경로로 보내 node 전체를 그대로 보존한다)
+                const tableParentForCheck = node.tagName === 'TABLE' ? null : tableEl.parentElement;
+                const hasNonTableSibling = !!tableParentForCheck &&
+                    Array.from(tableParentForCheck.children).some(c => c.tagName !== 'TABLE');
+                const isSimpleWrapper = (node.tagName === 'TABLE' ||
                     tableEl.parentElement === node ||
-                    (tableEl.parentElement?.tagName === 'DIV' && tableEl.parentElement?.parentElement === node);
+                    (tableEl.parentElement?.tagName === 'DIV' && tableEl.parentElement?.parentElement === node)) &&
+                    !hasNonTableSibling;
 
                 if (!isSimpleWrapper) {
                     // 복잡한 중첩 구조: 전체 노드를 그대로 table 그룹에 넣어
@@ -566,7 +588,13 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         (config.numClassName && config.numClassName.trim()) || 'num',
         (config.tableNumClassName && config.tableNumClassName.trim()) || 'num',
     ]));
-    resultWrapper.querySelectorAll(numClasses.map(c => `ol li span.${c}`).join(',')).forEach(span => {
+    // numClasses는 사용자가 설정 모달에 자유 입력한 클래스명을 포함하므로, 따옴표 등이 섞이면
+    // 셀렉터 문법 오류로 전체 정리 파이프라인이 중단될 수 있어 방어한다.
+    let numClassSpans = [];
+    try {
+        numClassSpans = Array.from(resultWrapper.querySelectorAll(numClasses.map(c => `ol li span.${c}`).join(',')));
+    } catch (e) {}
+    numClassSpans.forEach(span => {
         const original = span.textContent.trim();
         const converted = convertCircleToArabic(original);
         if (converted !== original) span.textContent = converted;

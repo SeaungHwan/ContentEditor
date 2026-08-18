@@ -30,9 +30,9 @@ import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
 
 
 export default function ContentConfigModal({ onClose, onApply, globalConfig, layout, isGuideMode, setIsGuideMode, fadeStyle }) {
-    const [localConfig, setLocalConfig] = useState(globalConfig ? { ...globalConfig } : {});
+    const [localConfig, setLocalConfig] = useState(() => globalConfig ? { ...globalConfig } : {});
     const [activeDropdown, setActiveDropdown] = useClickOutsideDropdown();
-    const { dragStyle, handleDragStart } = useModalDrag();
+    const { dragStyle, handleDragStart, modalRef } = useModalDrag();
     // 드롭다운에서 직접 선택했을 때만 잠금(읽기 전용 라벨) 처리 - 타이핑 중 값이 우연히 프리셋과 같아져도 잠기지 않도록 별도 추적
     const [lockedTitClass, setLockedTitClass] = useState(() => (
         ['tit1', 'tit2', 'tit3'].reduce((acc, titKey) => {
@@ -64,7 +64,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
     };
 
     return (
-        <div className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
+        <div ref={modalRef} className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
                 <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
                     <span>컨텐츠 설정<em>ㅣ스타일 가이드 맞춤 변경</em></span>
                     <div className={layout.swichBtnWrap}>
