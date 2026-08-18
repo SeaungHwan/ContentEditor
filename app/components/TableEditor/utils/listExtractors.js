@@ -610,6 +610,11 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
                     flushLastPara();
                     if (isTableWrapper) {
                         rootNodes.push(node);
+                    } else if (node.tagName === 'P') {
+                        // 이미 <p>인 노드를 새 <p>로 다시 만들면 원래 클래스(예: bu_st1처럼
+                        // 대상 사이트가 이미 쓰고 있는 클래스)가 통째로 사라진다. DIV→P 정규화가
+                        // 필요 없는 경우이므로 노드를 그대로 보존한다.
+                        if (node.innerHTML.trim()) rootNodes.push(node);
                     } else {
                         const p = document.createElement('p');
                         while (node.firstChild) p.appendChild(node.firstChild);

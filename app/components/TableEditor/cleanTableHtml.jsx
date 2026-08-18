@@ -254,15 +254,23 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                 // 테이블이 node의 직접/1단계 자식인 단순 래퍼인지 확인
                 // (예: <div class="tbl_st"><table> 또는 <table>)
                 // 아닌 경우: <div><ul><li><div><table> 같은 복잡한 중첩 구조,
-                // 또는 표의 부모 안에 캡션 문단 등 다른 요소가 함께 있는 경우
-                // (단순 래퍼로 취급하면 아래 tablesToProcess가 TABLE만 골라내 그 외 요소가 소실되므로,
-                // 그런 경우는 복잡 구조 경로로 보내 node 전체를 그대로 보존한다)
+                // 또는 표의 부모(혹은 그 조상인 node 자신) 안에 캡션 문단·제목 등 다른 요소가
+                // 함께 있는 경우 (단순 래퍼로 취급하면 아래 tablesToProcess가 TABLE만 골라내
+                // 그 외 요소가 소실되므로, 그런 경우는 복잡 구조 경로로 보내 node 전체를 보존한다)
                 const tableParentForCheck = node.tagName === 'TABLE' ? null : tableEl.parentElement;
                 const hasNonTableSibling = !!tableParentForCheck &&
                     Array.from(tableParentForCheck.children).some(c => c.tagName !== 'TABLE');
-                const isSimpleWrapper = (node.tagName === 'TABLE' ||
-                    tableEl.parentElement === node ||
-                    (tableEl.parentElement?.tagName === 'DIV' && tableEl.parentElement?.parentElement === node)) &&
+                const isDirectWrapper = tableEl.parentElement === node;
+                // 이중 래퍼(<div><div class="tbl_st"><table></div></div>) 조건은 표의 부모→조부모
+                // 관계만 확인하고, node 자신이 그 중간 래퍼 div 하나 말고 다른 형제(예: 두 번째 표,
+                // 별도의 h4 제목)를 더 가지고 있는지는 확인하지 않았다. 그래서 box_st2처럼 여러
+                // 표/제목을 담은 컨테이너가 재정리 시 "표 1개짜리 이중 래퍼"로 오인되어 나머지
+                // 형제 전체가 사라지는 버그가 있었다 — node 자신도 자식이 1개(그 중간 래퍼)뿐일 때만
+                // 이중 래퍼로 인정한다.
+                const isDoubleWrapper = tableEl.parentElement?.tagName === 'DIV' &&
+                    tableEl.parentElement?.parentElement === node &&
+                    node.children.length === 1;
+                const isSimpleWrapper = (node.tagName === 'TABLE' || isDirectWrapper || isDoubleWrapper) &&
                     !hasNonTableSibling;
 
                 if (!isSimpleWrapper) {
