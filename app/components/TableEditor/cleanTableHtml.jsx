@@ -42,6 +42,12 @@ export { updateStylesOnly } from './utils/styleUpdater';
 
 const URL_REGEX = /(?:https?:\/\/|www\.)[^\s<]+|[a-zA-Z0-9.-]+\.(?:com|net|org|kr|io|info|biz|co|go|or|ac|re)(?:\/[^\s<]*)?/ig;
 
+// 문장부호 없이 URL 뒤에 바로 붙는 한글이 "조사"인 경우만 잘라내기 위한 목록(완전한 조사
+// 목록은 아니고 실무에서 자주 쓰이는 것 위주). 문장부호 없이 그냥 한글로 끝나는 URL(예:
+// 네이버 블로그 슬러그처럼 실제 경로가 한글인 경우)과 구분하기 위해, 문장부호가 전혀
+// 섞이지 않은 순수 한글 꼬리는 이 목록에 정확히 일치할 때만 잘라낸다.
+const KOREAN_PARTICLE_RE = /^(?:이라고|하고|이며|처럼|같이|보다|부터|까지|마저|조차|밖에|대로|에서는|에게는|한테는|이라는|라는|에서|에게|한테|으로|께서|이나|와는|과는|에는|로는|와|과|은|는|이|가|을|를|도|만|로|의|에|나|며|고|께)$/;
+
 // <a> 태그 정규화 및 plain-text URL → 링크 변환. linkClassName은 텍스트/표 공통 클래스다.
 const _processLinks = (container, config) => {
     const linkClass = (config.linkClassName && config.linkClassName.trim()) || 'bu_link';
@@ -87,13 +93,20 @@ const _processLinks = (container, config) => {
             }
             if (cutAt !== -1) rawUrl = rawUrl.slice(0, cutAt);
 
-            // 2) 남은 꼬리의 문장부호 + 그 뒤에 공백 없이 바로 붙는 한글 조사(예: "...kr.을")까지
-            //    한 번에 잘라낸다. 문장부호만 보고 문자열 끝(anchor $)을 기준으로 자르면, 끝 글자가
-            //    조사인 경우(문장부호가 맨 끝이 아니게 되어) 매치 자체가 실패해 그대로 URL에 남는다.
-            //    괄호/대괄호는 위에서 이미 처리했으므로 여기서는 다루지 않는다.
-            const trailingPunctuation = rawUrl.match(/[.,:;"'가-힣ㄱ-ㅎㅏ-ㅣ]+$/);
-            const actualUrl = trailingPunctuation ? rawUrl.slice(0, -trailingPunctuation[0].length) : rawUrl;
-            const wasTruncated = actualUrl.length < match[0].length;
+            // 2) 남은 꼬리의 문장부호(+그 뒤에 바로 붙는 한글)를 잘라낸다. 문장부호가 섞여 있으면
+            //    문장이 URL을 감싸다 생긴 꼬리가 확실하므로 통째로 제거하고, 문장부호 없이 한글만
+            //    남았다면 "실제 조사"일 때만 제거한다(네이버 블로그 슬러그처럼 경로 자체가 한글로
+            //    끝나는 정상 URL과 구분하기 위함).
+            let actualUrl = rawUrl;
+            const trailingRun = rawUrl.match(/[.,:;"'가-힣ㄱ-ㅎㅏ-ㅣ]+$/);
+            if (trailingRun) {
+                const run = trailingRun[0];
+                if (/[.,:;"']/.test(run) || KOREAN_PARTICLE_RE.test(run)) actualUrl = rawUrl.slice(0, -run.length);
+            }
+
+            // 괄호 정리 등으로 스킴/www.만 남고 실제 주소가 없어진 경우 깨진 링크를 만들지 않는다.
+            if (!actualUrl || /^(?:https?:\/\/|www\.)$/i.test(actualUrl)) continue;
+
             const matchEndIndex = match.index + actualUrl.length;
             if (match.index > lastIndex) fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
             const a = document.createElement('a');
@@ -103,7 +116,7 @@ const _processLinks = (container, config) => {
             a.textContent = actualUrl;
             fragment.appendChild(a);
             lastIndex = matchEndIndex;
-            if (wasTruncated) URL_REGEX.lastIndex = matchEndIndex;
+            if (actualUrl.length < match[0].length) URL_REGEX.lastIndex = matchEndIndex;
         }
         if (lastIndex < text.length) fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
         node.parentNode.replaceChild(fragment, node);

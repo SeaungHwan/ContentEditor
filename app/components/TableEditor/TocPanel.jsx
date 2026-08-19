@@ -10,6 +10,23 @@
 "use client";
 import React from 'react';
 
+const WIDTH_KEY = 'tocPanelWidth';
+const ONBOARDING_KEY = 'tocOnboardingSeen';
+const MIN_WIDTH = 165;
+const MAX_WIDTH = 320;
+const DEFAULT_WIDTH = 190;
+const clampWidth = w => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w));
+
+const readStoredWidth = () => {
+    try {
+        const saved = Number(window.localStorage.getItem(WIDTH_KEY));
+        return saved ? clampWidth(saved) : DEFAULT_WIDTH;
+    } catch { return DEFAULT_WIDTH; }
+};
+const readOnboardingSeen = () => {
+    try { return !!window.localStorage.getItem(ONBOARDING_KEY); } catch { return false; }
+};
+
 const TocPanel = React.memo(({
     layout,
     showToc, setShowToc,
@@ -21,42 +38,63 @@ const TocPanel = React.memo(({
     scrollToCandidate, handleCandidateLevelChange, handleCandidateConvert, handleCandidateDismiss,
     handleCandidateConvertAll, handleCandidateDismissAll, handleConversionUndo,
 }) => {
-    const [panelWidth, setPanelWidth] = React.useState(190);
-    const [showOnboarding, setShowOnboarding] = React.useState(false);
+    const [panelWidth, setPanelWidth] = React.useState(readStoredWidth);
+    const [showOnboarding, setShowOnboarding] = React.useState(() => !readOnboardingSeen());
+    const latestWidthRef = React.useRef(panelWidth);
+    const isDraggingRef = React.useRef(false);
+    const dragStartRef = React.useRef({ mouseX: 0, width: 0 });
 
+    // 마운트 중 한 번만 붙는 영구 리스너(useModalDrag.js와 동일한 패턴). 드래그 제스처마다
+    // addEventListener/removeEventListener를 반복하면, mouseup이 Jodit 에디터 iframe 위에서
+    // 발생해 document까지 전달되지 않는 경우 리스너가 정리되지 않고 계속 쌓여 다음 드래그부터
+    // setPanelWidth가 이중으로 호출되며 리사이즈가 튀는 문제가 있었다.
     React.useEffect(() => {
-        const savedWidth = Number(window.localStorage.getItem('tocPanelWidth'));
-        if (savedWidth) setPanelWidth(savedWidth);
-        if (!window.localStorage.getItem('tocOnboardingSeen')) setShowOnboarding(true);
+        let rafId = null;
+        let latestClientX = null;
+        const flush = () => {
+            rafId = null;
+            if (latestClientX === null) return;
+            const next = clampWidth(dragStartRef.current.width - (latestClientX - dragStartRef.current.mouseX));
+            latestWidthRef.current = next;
+            setPanelWidth(next);
+        };
+        const onMove = e => {
+            if (!isDraggingRef.current) return;
+            latestClientX = e.clientX;
+            if (rafId === null) rafId = requestAnimationFrame(flush);
+        };
+        const onUp = () => {
+            if (!isDraggingRef.current) return;
+            isDraggingRef.current = false;
+            try { window.localStorage.setItem(WIDTH_KEY, String(latestWidthRef.current)); } catch { /* 무시 */ }
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        return () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
     }, []);
 
     const dismissOnboarding = () => {
         setShowOnboarding(false);
-        window.localStorage.setItem('tocOnboardingSeen', '1');
+        try { window.localStorage.setItem(ONBOARDING_KEY, '1'); } catch { /* 무시 */ }
     };
 
     const startResize = e => {
         e.preventDefault();
-        const startX = e.clientX;
-        const startWidth = panelWidth;
-        let latestWidth = startWidth;
-        const onMove = moveEvent => {
-            latestWidth = Math.min(320, Math.max(165, startWidth - (moveEvent.clientX - startX)));
-            setPanelWidth(latestWidth);
-        };
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            window.localStorage.setItem('tocPanelWidth', String(latestWidth));
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        isDraggingRef.current = true;
+        dragStartRef.current = { mouseX: e.clientX, width: panelWidth };
     };
 
     const hasAnyItem = tocItems.length >= 1 || headingCandidates.length > 0 || conversionHistory.length > 0;
-    const showTocPanel = showToc && hasAnyItem;
 
-    if (!showTocPanel) {
+    // showToc가 꺼져 있을 때만 완전히 숨기거나 재오픈 버튼을 보여준다. showToc가 켜진 뒤에는
+    // hasAnyItem이 false여도(예: 방금 열었는데 유휴시간 재파싱 결과 항목이 0개인 경우) 패널을
+    // 통째로 숨기지 않는다 — 그러면 열자마자 깜빡이며 사라지고 재오픈 버튼까지 없어져 다시
+    // 열 방법이 사라지는 문제가 있었다. 대신 아래 본문에서 "표시할 항목 없음" 상태를 보여준다.
+    if (!showToc) {
         if (!hasAnyItem) return null;
         return (
             <button
@@ -98,6 +136,9 @@ const TocPanel = React.memo(({
                 </button>
             </div>
 
+            {!hasAnyItem ? (
+                <div className={layout.tocEmpty}>표시할 제목·표·목록이 없습니다.</div>
+            ) : (<>
             {/* 배지 범례: 처음 사용자를 위한 기호 설명 */}
             <div className={layout.tocLegend}>
                 <span className={layout.tocLegendItem}><i className={`${layout.tocLegendDot} ${layout.tocBadgeH}`} />제목</span>
@@ -213,6 +254,7 @@ const TocPanel = React.memo(({
                     )
                 ))}
             </div>
+            </>)}
         </div>
     );
 });
