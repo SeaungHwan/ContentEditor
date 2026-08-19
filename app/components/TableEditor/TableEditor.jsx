@@ -292,7 +292,8 @@ function TableEditor({ initialHtml = '', onChange }) {
         if (typeof cancelIdleCallback !== 'undefined' && tocIdleRef.current) {
             cancelIdleCallback(tocIdleRef.current);
         }
-        if (!showToc || !debouncedContent) { setTocItems([]); return; }
+        if (!debouncedContent) { setTocItems([]); return; }
+        if (!showToc) return; // 파싱만 스킵. tocItems를 비우면 재오픈 버튼(hasAnyItem 판단 기준)까지 사라진다.
         const parse = () => {
             try {
                 const doc = getDOMParser().parseFromString(debouncedContent, 'text/html');
