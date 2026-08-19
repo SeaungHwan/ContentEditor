@@ -73,8 +73,27 @@ const _processLinks = (container, config) => {
         let match;
         while ((match = URL_REGEX.exec(text)) !== null) {
             let rawUrl = match[0];
-            const trailingPunctuation = rawUrl.match(/[.,:;"')\]]+$/);
+
+            // 1) 괄호/대괄호 균형 검사: "(https://example.com/a_(b))을" 처럼 URL 안에 정상적으로
+            //    짝지어진 괄호는 보존하고, "(https://example.com)을"처럼 문장이 URL을 감싸느라
+            //    생긴 짝 없는 닫는 괄호가 나오면 그 앞에서 잘라낸다.
+            let openParen = 0, openBracket = 0, cutAt = -1;
+            for (let ci = 0; ci < rawUrl.length; ci++) {
+                const c = rawUrl[ci];
+                if (c === '(') openParen++;
+                else if (c === '[') openBracket++;
+                else if (c === ')') { if (openParen > 0) openParen--; else { cutAt = ci; break; } }
+                else if (c === ']') { if (openBracket > 0) openBracket--; else { cutAt = ci; break; } }
+            }
+            if (cutAt !== -1) rawUrl = rawUrl.slice(0, cutAt);
+
+            // 2) 남은 꼬리의 문장부호 + 그 뒤에 공백 없이 바로 붙는 한글 조사(예: "...kr.을")까지
+            //    한 번에 잘라낸다. 문장부호만 보고 문자열 끝(anchor $)을 기준으로 자르면, 끝 글자가
+            //    조사인 경우(문장부호가 맨 끝이 아니게 되어) 매치 자체가 실패해 그대로 URL에 남는다.
+            //    괄호/대괄호는 위에서 이미 처리했으므로 여기서는 다루지 않는다.
+            const trailingPunctuation = rawUrl.match(/[.,:;"'가-힣ㄱ-ㅎㅏ-ㅣ]+$/);
             const actualUrl = trailingPunctuation ? rawUrl.slice(0, -trailingPunctuation[0].length) : rawUrl;
+            const wasTruncated = actualUrl.length < match[0].length;
             const matchEndIndex = match.index + actualUrl.length;
             if (match.index > lastIndex) fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
             const a = document.createElement('a');
@@ -84,7 +103,7 @@ const _processLinks = (container, config) => {
             a.textContent = actualUrl;
             fragment.appendChild(a);
             lastIndex = matchEndIndex;
-            if (trailingPunctuation) URL_REGEX.lastIndex = matchEndIndex;
+            if (wasTruncated) URL_REGEX.lastIndex = matchEndIndex;
         }
         if (lastIndex < text.length) fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
         node.parentNode.replaceChild(fragment, node);

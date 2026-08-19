@@ -48,7 +48,11 @@ import { mapColorToClass } from './colorUtils';
 
 // 텍스트 노드마다 재컴파일하지 않도록 모듈 상수로 호이스트.
 // test()/exec() 호출부에서 매번 lastIndex를 명시적으로 관리하므로 공유해도 안전하다.
-const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
+// TLD를 실제 존재하는 것만으로 한정(cleanTableHtml.jsx의 URL_REGEX와 동일 목록)해,
+// 뒤에 공백 없이 영문 단어가 바로 붙는 경우(예: "...comASAP") 그 단어까지 이메일에
+// 통째로 딸려 들어가는 것을 막는다. [a-zA-Z]{2,}처럼 열어두면 글자 수 제한을 걸어도
+// 뒤에 붙은 단어가 그 안에 들어오면 여전히 함께 매치된다.
+const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.(?:com|net|org|kr|io|info|biz|co|go|or|ac|re))/g;
 
 let sharedDOMParser = null;
 export const getDOMParser = () => {
