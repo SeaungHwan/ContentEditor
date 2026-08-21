@@ -3,6 +3,7 @@
  */
 "use client";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import dynamic from 'next/dynamic';
 import layout from "../../layout.module.css";
 import { cleanTableHtml, updateStylesOnly } from './cleanTableHtml';
 import TableConfigToolbar from './TableConfigToolbar';
@@ -23,13 +24,15 @@ import GlobalTableConfigModal from './modal/GlobalTableConfigModal';
 import ContentConfigModal from './modal/ContentConfigModal';
 import EtcConfigModal from './modal/EtcConfigModal';
 import PresetsModal from './modal/PresetsModal';
+// 챗봇은 초기 렌더/타이핑 경로와 무관한 독립 위젯이라 별도 청크로 분리하고 SSR 대상에서 제외한다.
+const ChatBot = dynamic(() => import('./ChatBot/ChatBot'), { ssr: false });
 
 import useModals from './hooks/useModals';
 import useEditorActions from './hooks/useEditorActions';
 import useAutoSave from './hooks/useAutoSave';
 import usePresets from './hooks/usePresets';
 import GlobalLoader from '../loading/GlobalLoader';
-import { fillSeqInTable } from './utils/tableEditUtils';
+import { fillSeqInTable, createRafThrottle } from './utils/tableEditUtils';
 import { applyColGroupHelper } from './utils/tableFormatters';
 import { getDOMParser } from './utils/htmlCleaners';
 import { extractHeadingCandidates } from './utils/headingExtractor';
@@ -138,8 +141,13 @@ function TableEditor({ initialHtml = '', onChange }) {
     const { toast, triggerToast } = useToast();
     const {
         modals, getFadeStyle, toggleModal, isGuideMode, setIsGuideMode,
+        isChatBotVisible, setIsChatBotVisible,
         tableEditModal, openTableEditModal, closeTableEditModal
     } = useModals();
+
+    // 인라인 화살표를 그대로 넘기면 매 렌더(타이핑 등)마다 새 참조가 생겨 ChatBot(React.memo)의
+    // 리렌더 방지가 무력화되므로, 참조가 고정된 콜백으로 감싼다.
+    const handleHideChatBot = useCallback(() => setIsChatBotVisible(false), [setIsChatBotVisible]);
 
     const { presets, savePreset, deletePreset } = usePresets();
 
@@ -384,16 +392,12 @@ function TableEditor({ initialHtml = '', onChange }) {
 
         // 네이티브 scroll 이벤트는 초당 수십 회 발생할 수 있어, updateBtnPos와 동일하게
         // requestAnimationFrame으로 스로틀링해 프레임당 1회만 querySelectorAll/getBoundingClientRect를 실행한다.
-        let rafId = null;
-        const throttled = () => {
-            if (rafId) return;
-            rafId = requestAnimationFrame(() => { rafId = null; handleScroll(); });
-        };
+        const throttled = createRafThrottle(handleScroll);
 
         editorEl.addEventListener('scroll', throttled, { passive: true });
         return () => {
             editorEl.removeEventListener('scroll', throttled);
-            if (rafId) cancelAnimationFrame(rafId);
+            throttled.cancel();
         };
     }, [showToc, tocItems.length]);
 
@@ -761,17 +765,13 @@ function TableEditor({ initialHtml = '', onChange }) {
 
     useEffect(() => {
         if (!selectedTableNode) { if (tableBtnRef.current) tableBtnRef.current.style.display = 'none'; return; }
-        let rafId = null;
-        const throttled = () => {
-            if (rafId) return;
-            rafId = requestAnimationFrame(() => { rafId = null; updateBtnPos(); });
-        };
+        const throttled = createRafThrottle(updateBtnPos);
         window.addEventListener('scroll', throttled, true);
         window.addEventListener('resize', throttled);
         return () => {
             window.removeEventListener('scroll', throttled, true);
             window.removeEventListener('resize', throttled);
-            if (rafId) cancelAnimationFrame(rafId);
+            throttled.cancel();
         };
     // 선택된 테이블이 바뀔 때마다가 아니라, 선택 유무(있음↔없음)가 바뀔 때만 리스너를 다시 건다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -902,6 +902,8 @@ function TableEditor({ initialHtml = '', onChange }) {
                 <TableConfigToolbar
                     isGuideMode={isGuideMode}
                     setIsGuideMode={setIsGuideMode}
+                    isChatBotVisible={isChatBotVisible}
+                    setIsChatBotVisible={setIsChatBotVisible}
                     toggleModal={toggleModal}
                     modals={modals}
                     handleCopy={handleCopy}
@@ -983,6 +985,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             </div>
 
             {isGuideMode && <div className={layout.guideWrap}/>}
+            <ChatBot visible={isChatBotVisible} onHide={handleHideChatBot} />
             {toast.show && <div key={toast.id} className="toast-popup">{toast.message}</div>}
             {modals.preview && <PreviewModal content={content} config={config} widthString={formattedWidthString} onClose={handlePreviewClose} layout={layout} fadeStyle={getFadeStyle('preview')} />}
             {modals.guide && <GuideModal onClose={handleGuideClose} layout={layout} fadeStyle={getFadeStyle('guide')} />}

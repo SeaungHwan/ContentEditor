@@ -267,7 +267,6 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
         },
         
         buttons: ['source', '|','table', 'undo', 'redo'],
-        // extraButtons: [toggleThButton],
         showXPathInStatusbar: false,
         showCharsCounter: false,
         showWordsCounter: false,

@@ -45,6 +45,7 @@ export default function useModals() {
     const [modals, setModals] = useState(INITIAL_MODALS);
     const [visibleModals, setVisibleModals] = useState(INITIAL_MODALS);
     const [isGuideMode, setIsGuideMode] = useState(false);
+    const [isChatBotVisible, setIsChatBotVisible] = useState(true);
     const [tableEditData, setTableEditData] = useState(INITIAL_TABLE_EDIT_DATA);
 
     const timersRef = useRef({});
@@ -132,11 +133,12 @@ export default function useModals() {
 
     return {
         modals,
-        visibleModals,
         getFadeStyle,
         toggleModal,
         isGuideMode,
         setIsGuideMode,
+        isChatBotVisible,
+        setIsChatBotVisible,
         tableEditModal: { show: modals.tableEdit, ...tableEditData },
         openTableEditModal,
         closeTableEditModal,

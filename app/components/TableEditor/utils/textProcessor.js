@@ -31,7 +31,7 @@
 
 import { traverseAndClean, performCleanup, removeLeadingCharsFromDOM, mergeAdjacentColorSpans } from './htmlCleaners';
 import { applyNestedClassesHelper, processCellContent, checkTitleMatch, processMsoLists } from './listExtractors';
-import { UL_NONE_VALUE } from './constants';
+import { UL_NONE_VALUE, DEFAULT_LINK_CLASS, DEFAULT_MAIL_CLASS, DEFAULT_NUM_CLASS } from './constants';
 
 
 const processTextContentBase = (containerDOM, config, isColorMode, isColorClassMode) => {
@@ -40,9 +40,9 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
     const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, olClassName, numClassName, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2, linkClassName, mailClassName } = config;
     const noUl = ulClass === UL_NONE_VALUE;
     const noAtte = useAtteMarker === false;
-    const numClass = (numClassName && numClassName.trim()) ? numClassName.trim() : 'num';
-    const linkClass = (linkClassName && linkClassName.trim()) || 'bu_link';
-    const mailClass = (mailClassName && mailClassName.trim()) || 'bu_mail';
+    const numClass = (numClassName && numClassName.trim()) ? numClassName.trim() : DEFAULT_NUM_CLASS;
+    const linkClass = (linkClassName && linkClassName.trim()) || DEFAULT_LINK_CLASS;
+    const mailClass = (mailClassName && mailClassName.trim()) || DEFAULT_MAIL_CLASS;
 
     // 1. 셀 내용 처리 및 클래스 적용
     processMsoLists(containerDOM);

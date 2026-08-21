@@ -8,6 +8,7 @@
 "use client";
 import React from 'react';
 import { TABLE_CLASS_SUGGESTIONS, TABLE_SCROLL_SUGGESTIONS, SCROLL_CLASSES } from '../../utils/constants';
+import ManualInputOption from './ManualInputOption';
 
 export default function TableClassField({ layout, value, onChange, activeDropdown, setActiveDropdown, hintTitle, guideMessage }) {
     const wVal = value || '';
@@ -48,9 +49,7 @@ export default function TableClassField({ layout, value, onChange, activeDropdow
                                 </li>
                             );
                         })}
-                        <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); setIsLocked(false); onChange(''); setActiveDropdown(null); }}>
-                            직접 입력 <i className="ri-edit-line"></i>
-                        </li>
+                        <ManualInputOption layout={layout} onSelect={() => { setIsLocked(false); onChange(''); setActiveDropdown(null); }} />
                     </ul>
                 )}
             </div>

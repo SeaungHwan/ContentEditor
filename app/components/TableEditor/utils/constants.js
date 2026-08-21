@@ -190,14 +190,22 @@ export const TIT_CLASS_SUGGESTIONS = [
     { label: 'tit2', value: 'tit2' },
     { label: 'tit3', value: 'tit3' },
 ];
+// 사용자가 클래스명을 비워두거나 지정하지 않았을 때 쓰이는 기본값.
+// styleUpdater.js/tableProcessor.js/textProcessor.js/listExtractors.js/tableFormatters.js에
+// 중복 리터럴로 흩어져 있던 값을 하나로 통합.
+export const DEFAULT_BOX_CLASS = 'box_st2';
+export const DEFAULT_LINK_CLASS = 'bu_link';
+export const DEFAULT_MAIL_CLASS = 'bu_mail';
+export const DEFAULT_NUM_CLASS = 'num';
+
 export const BOX_CLASS_SUGGESTIONS = [
-    { label: 'box_st2', value: 'box_st2' },
+    { label: DEFAULT_BOX_CLASS, value: DEFAULT_BOX_CLASS },
 ];
 export const LINK_CLASS_SUGGESTIONS = [
-    { label: 'bu_link', value: 'bu_link' },
+    { label: DEFAULT_LINK_CLASS, value: DEFAULT_LINK_CLASS },
 ];
 export const MAIL_CLASS_SUGGESTIONS = [
-    { label: 'bu_mail', value: 'bu_mail' },
+    { label: DEFAULT_MAIL_CLASS, value: DEFAULT_MAIL_CLASS },
 ];
 export const OL_OPTIONS = [
     { value: 'decimal-dot', label: '숫자: 1.' },

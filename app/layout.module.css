@@ -19,7 +19,7 @@
 
 
 /* 홈버튼 */
-.homeWrap {display: flex; align-items: center; width: auto; gap: 1.25rem; margin-left:auto;}
+.homeWrap {display: flex; align-items: center; width: auto; gap: 0.5rem; margin-left:auto;}
 
 /* 가이드 */
 .guideBtn {padding: 0;}

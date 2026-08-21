@@ -18,6 +18,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import ClassNameField from './shared/ClassNameField';
+import ModalHeader from './shared/ModalHeader';
 import { GUIDE_MESSAGES, BOX_CLASS_SUGGESTIONS, LINK_CLASS_SUGGESTIONS, MAIL_CLASS_SUGGESTIONS } from '../utils/constants';
 import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
@@ -42,14 +43,14 @@ export default function EtcConfigModal({ onClose, onApply, globalConfig, layout,
 
     return (
         <div ref={modalRef} className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
-                <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
-                    <span>기타 설정<em>ㅣ박스·링크·메일 클래스 변경</em></span>
-                    <button type="button" data-guide-toggle="true" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
-                    <div className={`${layout.guide} ${isGuideMode ? `${layout.guideClose}` : ''}`}>
-                        <img src='/00_common/images/sub_com/guide.svg' alt="아이콘"/>
-                    </div>
-                    </button>
-                </h2>
+                <ModalHeader
+                    layout={layout}
+                    onDragStart={handleDragStart}
+                    title="기타 설정"
+                    subtitle="ㅣ박스·링크·메일 클래스 변경"
+                    isGuideMode={isGuideMode}
+                    setIsGuideMode={setIsGuideMode}
+                />
 
                 <div className={layout.modalBody}>
 

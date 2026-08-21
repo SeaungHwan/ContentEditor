@@ -1,14 +1,14 @@
 /*
  * [ClassNameField.jsx] 단일 클래스명 입력+드롭다운 공용 필드
  *
- * ContentConfigModal(박스/링크/메일)과 GlobalTableConfigModal·TableEditModal(표 내부 링크/메일)에서
- * 동일하게 쓰이는 "라벨 + 클래스명 입력 + 후보 드롭다운 + 직접 입력" UI를 공통으로 추출한 것.
+ * EtcConfigModal에서 쓰이는 "라벨 + 클래스명 입력 + 후보 드롭다운 + 직접 입력" UI를 공통으로 추출한 것.
  * ListSettingsSection의 ul 필드, TableClassField와 같은 패턴이나 스크롤 클래스 같은 특수 옵션이
  * 없는 단순 단일 클래스명 전용이라 별도 컴포넌트로 분리했다.
  * guideMessage가 없으면(undefined) 가이드 하이라이트를 렌더링하지 않는다.
  */
 "use client";
 import React from 'react';
+import ManualInputOption from './ManualInputOption';
 
 export default function ClassNameField({ layout, label, value, onChange, suggestions, dropdownKey, activeDropdown, setActiveDropdown, hintTitle, guideMessage }) {
     const val = value || '';
@@ -39,9 +39,7 @@ export default function ClassNameField({ layout, label, value, onChange, suggest
                                 {cls.label}
                             </li>
                         ))}
-                        <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); setIsLocked(false); onChange(''); setActiveDropdown(null); }}>
-                            직접 입력 <i className="ri-edit-line"></i>
-                        </li>
+                        <ManualInputOption layout={layout} onSelect={() => { setIsLocked(false); onChange(''); setActiveDropdown(null); }} />
                     </ul>
                 )}
             </div>

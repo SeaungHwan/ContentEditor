@@ -41,7 +41,8 @@
 import { traverseAndClean, performCleanup, mergeAdjacentColorSpans } from './htmlCleaners';
 import { applyTableSemantics, applyVerticalHeaders } from './tableFormatters';
 import { applyNestedClassesHelper, processCellContent, processMsoLists, flattenHeaderCell } from './listExtractors';
-import { UL_NONE_VALUE, formatColWidths, RE_WHITESPACE, PLACEHOLDER_IMAGE_SRC } from './constants';
+import { UL_NONE_VALUE, formatColWidths, RE_WHITESPACE, PLACEHOLDER_IMAGE_SRC, DEFAULT_BOX_CLASS, DEFAULT_LINK_CLASS, DEFAULT_MAIL_CLASS, DEFAULT_NUM_CLASS } from './constants';
+import { resolveLocalConfigNode, parseJsonAttr } from './tableEditUtils';
 
 
 // sourceEl: DOM 노드를 직접 받아 처리 후 tempDiv(DOM)를 반환한다.
@@ -112,10 +113,10 @@ const applyTableFormats = (container, config, colWidths) => {
     boxClassName,
     tableType, isWrapDiv, isVerticalHeader, headerRows, headerCols, isColorMode, isColorClassMode, tableListStartFrom2
 } = config;
-    const boxClass = (boxClassName && boxClassName.trim()) || 'box_st2';
+    const boxClass = (boxClassName && boxClassName.trim()) || DEFAULT_BOX_CLASS;
     // 링크/이메일 클래스는 텍스트 블록과 표가 공통으로 쓰는 전역 설정이라 표별 오버라이드가 없다.
-    const linkClass = (linkClassName && linkClassName.trim()) || 'bu_link';
-    const mailClass = (mailClassName && mailClassName.trim()) || 'bu_mail';
+    const linkClass = (linkClassName && linkClassName.trim()) || DEFAULT_LINK_CLASS;
+    const mailClass = (mailClassName && mailClassName.trim()) || DEFAULT_MAIL_CLASS;
 
     const allTables = Array.from(container.querySelectorAll('table')).reverse();
     allTables.forEach(table => {
@@ -145,48 +146,32 @@ const applyTableFormats = (container, config, colWidths) => {
         let curKeepMarker = keepMarker;
         let curListStartFrom2 = tableListStartFrom2;
 
-        let searchNode = table;
-        if (table.parentElement && (
-            table.parentElement.hasAttribute('data-local-config') ||
-            table.parentElement.hasAttribute('data-local-colwidths')
-        )) {
-            searchNode = table.parentElement;
-        } else if (table.hasAttribute('data-local-config') || table.hasAttribute('data-local-colwidths')) {
-            searchNode = table;
-        }
+        const searchNode = resolveLocalConfigNode(table);
 
-        const localCfgStr = searchNode.getAttribute('data-local-config');
-        if (localCfgStr) {
-            try {
-                const lCfg = JSON.parse(localCfgStr);
-                curWClass = lCfg.wrapperClassName;
-                curType = lCfg.tableType;
-                curWrapDiv = lCfg.isWrapDiv;
-                curHeaderRows = lCfg.headerRows;
-                curHeaderCols = lCfg.headerCols;
-                curIsVertical = lCfg.isVerticalHeader;
-                if (lCfg.tableUseAtteMarker !== undefined) curUseAtteMarker = lCfg.tableUseAtteMarker;
-                // 예전에 저장된 data-local-config(이 필드들이 추가되기 전)에는 값이 없을 수 있으므로
-                // undefined일 때는 전역값을 그대로 유지한다.
-                if (lCfg.tableUlClassName !== undefined) curUlClass = lCfg.tableUlClassName;
-                if (lCfg.tableOlType !== undefined) curOlType = lCfg.tableOlType;
-                if (lCfg.tableOlClassName !== undefined) curOlClassName = lCfg.tableOlClassName;
-                if (lCfg.tableNumClassName !== undefined) curNumClassName = lCfg.tableNumClassName;
-                if (lCfg.tableKeepMarker !== undefined) curKeepMarker = lCfg.tableKeepMarker;
-                if (lCfg.tableListStartFrom2 !== undefined) curListStartFrom2 = lCfg.tableListStartFrom2;
-            } catch(e) {}
+        const { str: localCfgStr, value: lCfg } = parseJsonAttr(searchNode, 'data-local-config');
+        if (lCfg) {
+            curWClass = lCfg.wrapperClassName;
+            curType = lCfg.tableType;
+            curWrapDiv = lCfg.isWrapDiv;
+            curHeaderRows = lCfg.headerRows;
+            curHeaderCols = lCfg.headerCols;
+            curIsVertical = lCfg.isVerticalHeader;
+            if (lCfg.tableUseAtteMarker !== undefined) curUseAtteMarker = lCfg.tableUseAtteMarker;
+            // 예전에 저장된 data-local-config(이 필드들이 추가되기 전)에는 값이 없을 수 있으므로
+            // undefined일 때는 전역값을 그대로 유지한다.
+            if (lCfg.tableUlClassName !== undefined) curUlClass = lCfg.tableUlClassName;
+            if (lCfg.tableOlType !== undefined) curOlType = lCfg.tableOlType;
+            if (lCfg.tableOlClassName !== undefined) curOlClassName = lCfg.tableOlClassName;
+            if (lCfg.tableNumClassName !== undefined) curNumClassName = lCfg.tableNumClassName;
+            if (lCfg.tableKeepMarker !== undefined) curKeepMarker = lCfg.tableKeepMarker;
+            if (lCfg.tableListStartFrom2 !== undefined) curListStartFrom2 = lCfg.tableListStartFrom2;
         }
-        const localCwStr = searchNode.getAttribute('data-local-colwidths');
-        if (localCwStr) {
-            try {
-                const lCw = JSON.parse(localCwStr);
-                curColWidths = formatColWidths(lCw);
-            } catch(e) {}
-        }
+        const { str: localCwStr, value: lCw } = parseJsonAttr(searchNode, 'data-local-colwidths');
+        if (lCw) curColWidths = formatColWidths(lCw);
         searchNode.removeAttribute('data-local-config');
         searchNode.removeAttribute('data-local-colwidths');
 
-        const curNumClass = (curNumClassName && curNumClassName.trim()) ? curNumClassName.trim() : 'num';
+        const curNumClass = (curNumClassName && curNumClassName.trim()) ? curNumClassName.trim() : DEFAULT_NUM_CLASS;
 
         // cleanTableHtml.jsx의 최상위 루프는 "td/th 1개 이하 표 → boxClass div로 치환"을 처리하지만,
         // 그 검사는 doc.body의 최상위 자식에만 적용되고 다른 표의 셀 안에 중첩된 표는 거치지 않는다.

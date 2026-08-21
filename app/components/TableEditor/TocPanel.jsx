@@ -9,6 +9,7 @@
  */
 "use client";
 import React from 'react';
+import { useRafDragListener } from './hooks/useRafDragListener';
 
 const WIDTH_KEY = 'tocPanelWidth';
 const ONBOARDING_KEY = 'tocOnboardingSeen';
@@ -44,38 +45,18 @@ const TocPanel = React.memo(({
     const isDraggingRef = React.useRef(false);
     const dragStartRef = React.useRef({ mouseX: 0, width: 0 });
 
-    // 마운트 중 한 번만 붙는 영구 리스너(useModalDrag.js와 동일한 패턴). 드래그 제스처마다
-    // addEventListener/removeEventListener를 반복하면, mouseup이 Jodit 에디터 iframe 위에서
-    // 발생해 document까지 전달되지 않는 경우 리스너가 정리되지 않고 계속 쌓여 다음 드래그부터
-    // setPanelWidth가 이중으로 호출되며 리사이즈가 튀는 문제가 있었다.
-    React.useEffect(() => {
-        let rafId = null;
-        let latestClientX = null;
-        const flush = () => {
-            rafId = null;
-            if (latestClientX === null) return;
-            const next = clampWidth(dragStartRef.current.width - (latestClientX - dragStartRef.current.mouseX));
-            latestWidthRef.current = next;
-            setPanelWidth(next);
-        };
-        const onMove = e => {
-            if (!isDraggingRef.current) return;
-            latestClientX = e.clientX;
-            if (rafId === null) rafId = requestAnimationFrame(flush);
-        };
-        const onUp = () => {
-            if (!isDraggingRef.current) return;
-            isDraggingRef.current = false;
-            try { window.localStorage.setItem(WIDTH_KEY, String(latestWidthRef.current)); } catch { /* 무시 */ }
-        };
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-        return () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            if (rafId !== null) cancelAnimationFrame(rafId);
-        };
-    }, []);
+    // useModalDrag.js와 동일한 패턴(마운트 중 한 번만 붙는 영구 리스너)을 useRafDragListener로 공통화.
+    // 드래그 제스처마다 addEventListener/removeEventListener를 반복하면, mouseup이 Jodit 에디터
+    // iframe 위에서 발생해 document까지 전달되지 않는 경우 리스너가 정리되지 않고 계속 쌓여
+    // 다음 드래그부터 setPanelWidth가 이중으로 호출되며 리사이즈가 튀는 문제가 있었다.
+    useRafDragListener(isDraggingRef, e => {
+        const next = clampWidth(dragStartRef.current.width - (e.clientX - dragStartRef.current.mouseX));
+        latestWidthRef.current = next;
+        setPanelWidth(next);
+    }, () => {
+        isDraggingRef.current = false;
+        try { window.localStorage.setItem(WIDTH_KEY, String(latestWidthRef.current)); } catch { /* 무시 */ }
+    });
 
     const dismissOnboarding = () => {
         setShowOnboarding(false);

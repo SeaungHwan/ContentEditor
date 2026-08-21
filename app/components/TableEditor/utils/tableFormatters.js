@@ -35,7 +35,7 @@
  *     - 마지막에 applyColGroupHelper 호출해 colgroup 적용.
  */
 
-import { RE_NUMERIC } from './constants';
+import { RE_NUMERIC, DEFAULT_BOX_CLASS } from './constants';
 
 export const applyColGroupHelper = (table, colWidths) => {
     const oldColgroup = table.querySelector('colgroup');
@@ -124,7 +124,7 @@ export const applyVerticalHeaders = (table, isVerticalHeader) => {
 // rootContainer: 루트 div와의 비교가 필요한 경우(styleUpdater) 전달. null이면 체크 생략.
 // boxClass: config.boxClassName(콘텐츠 설정에서 변경 가능, 기본값 'box_st2') — 표를 감싼 부모 div가
 // "박스"(단일 셀 표 변환 결과)인지 판별할 때 쓴다.
-export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null, boxClass = 'box_st2') => {
+export const applyWrapDiv = (table, wClass, isWrapDiv, rootContainer = null, boxClass = DEFAULT_BOX_CLASS) => {
     if (isWrapDiv) {
         table.removeAttribute('class');
         const parent = table.parentElement;
@@ -181,7 +181,7 @@ const convertCellRole = (cell, scopeValue) => {
     }
 };
 
-export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths, boxClass = 'box_st2') => {
+export const applyTableSemantics = (table, wClass, type, isNested, isWrapDiv, headerRows, headerCols, colWidths, boxClass = DEFAULT_BOX_CLASS) => {
     applyWrapDiv(table, wClass, isWrapDiv, null, boxClass);
 
     const newThead = document.createElement('thead');

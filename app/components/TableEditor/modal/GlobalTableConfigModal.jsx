@@ -28,6 +28,7 @@ import ColWidthControl from '../ColWidthControl';
 import TableClassField from './shared/TableClassField';
 import HeaderDirectionField from './shared/HeaderDirectionField';
 import ListSettingsSection from './shared/ListSettingsSection';
+import ModalHeader from './shared/ModalHeader';
 import { GUIDE_MESSAGES } from '../utils/constants';
 import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
@@ -59,28 +60,19 @@ export default function GlobalTableConfigModal({ onClose, onApply, globalConfig,
 
     return (
         <div ref={modalRef} className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
-                <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
-                    <span>테이블 설정<em>ㅣ 테이블 맞춤 옵션 변경</em></span>
-
-                    <div className={layout.swichBtnWrap}>
-                        <span className={layout.colTit}>색상모드</span>
-                           <div className={layout.swichBtnGroup}>
-                            <button type="button"
-                                title="테이블 색상 모드 전환"
-                                className={`${layout.toggleSwitch} ${localConfig.tableIsColorMode ? layout.active : ''} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`}
-                                onClick={() => updateConfig('tableIsColorMode', !localConfig.tableIsColorMode)}
-                                data-guide={isGuideMode ? GUIDE_MESSAGES.modeSelect : undefined}
-                            >
-                                <span className={layout.toggleKnob}></span>
-                            </button>
-                            </div>
-                        </div>
-                    <button type="button" data-guide-toggle="true" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
-                    <div className={`${layout.guide} ${isGuideMode ? `${layout.guideClose}` : ''}`}>
-                        <img src='/00_common/images/sub_com/guide.svg' alt="아이콘"/>
-                    </div>
-                    </button>
-                </h2>
+                <ModalHeader
+                    layout={layout}
+                    onDragStart={handleDragStart}
+                    title="테이블 설정"
+                    subtitle="ㅣ 테이블 맞춤 옵션 변경"
+                    isGuideMode={isGuideMode}
+                    setIsGuideMode={setIsGuideMode}
+                    colorMode={{
+                        checked: localConfig.tableIsColorMode,
+                        onToggle: () => updateConfig('tableIsColorMode', !localConfig.tableIsColorMode),
+                        title: '테이블 색상 모드 전환',
+                    }}
+                />
 
                 <div className={layout.modalBody}>
                     <div className={layout.configSection}>

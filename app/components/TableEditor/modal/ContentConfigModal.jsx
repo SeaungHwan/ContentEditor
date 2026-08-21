@@ -24,6 +24,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import ListSettingsSection from './shared/ListSettingsSection';
+import ManualInputOption from './shared/ManualInputOption';
+import ModalHeader from './shared/ModalHeader';
 import { GUIDE_MESSAGES, TIT_OPTIONS, TIT_CLASS_SUGGESTIONS } from '../utils/constants';
 import { useModalDrag } from '../hooks/useModalDrag';
 import { useClickOutsideDropdown } from '../hooks/useClickOutsideDropdown';
@@ -65,28 +67,19 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
 
     return (
         <div ref={modalRef} className={`${layout.modalContentBox}`} style={{ ...dragStyle, ...fadeStyle }}>
-                <h2 className={layout.modalTitle} onMouseDown={handleDragStart}>
-                    <span>컨텐츠 설정<em>ㅣ스타일 가이드 맞춤 변경</em></span>
-                    <div className={layout.swichBtnWrap}>
-                            <span className={layout.colTit}>색상모드</span>
-                            <div className={layout.swichBtnGroup}>
-                                <button type="button"
-                                title="색상 모드 전환"
-                                className={`${layout.toggleSwitch} ${localConfig.isColorMode ? layout.active : ''} ${isGuideMode ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`}
-                                onClick={() => updateConfig('isColorMode', !localConfig.isColorMode)}
-                                data-guide={isGuideMode ? GUIDE_MESSAGES.modeSelect : undefined}
-                            >
-                                <span className={layout.toggleKnob}></span>
-                            </button>
-                            </div>
-                        </div>
-                    <button type="button" data-guide-toggle="true" className={layout.guideBtn} onClick={() => setIsGuideMode(!isGuideMode)} title={isGuideMode ? '가이드를 종료합니다.' : '가이드'}>
-
-                    <div className={`${layout.guide} ${isGuideMode ? `${layout.guideClose}` : ''}`}>
-                        <img src='/00_common/images/sub_com/guide.svg' alt="아이콘"/>
-                    </div>
-                    </button>
-                </h2>
+                <ModalHeader
+                    layout={layout}
+                    onDragStart={handleDragStart}
+                    title="컨텐츠 설정"
+                    subtitle="ㅣ스타일 가이드 맞춤 변경"
+                    isGuideMode={isGuideMode}
+                    setIsGuideMode={setIsGuideMode}
+                    colorMode={{
+                        checked: localConfig.isColorMode,
+                        onToggle: () => updateConfig('isColorMode', !localConfig.isColorMode),
+                        title: '색상 모드 전환',
+                    }}
+                />
 
                 <div className={layout.modalBody}>
 
@@ -128,9 +121,7 @@ export default function ContentConfigModal({ onClose, onApply, globalConfig, lay
                                                                 {opt.label}
                                                             </li>
                                                         ))}
-                                                        <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); setLockedTitClass(prev => ({ ...prev, [titKey]: false })); updateConfig(currentClassKey, ''); setActiveDropdown(null); }}>
-                                                            직접 입력 <i className="ri-edit-line"></i>
-                                                        </li>
+                                                        <ManualInputOption layout={layout} onSelect={() => { setLockedTitClass(prev => ({ ...prev, [titKey]: false })); updateConfig(currentClassKey, ''); setActiveDropdown(null); }} />
                                                     </ul>
                                                 )}
                                             </div>

@@ -46,7 +46,7 @@
  *     - Phase 4: 잔여 Ignore span unwrap
  */
 
-import { MARKER_TYPES, EXCLUDE_MARKER_REGEXES, HWP_CHAR_MAP, HWP_CHAR_REGEX, UL_NONE_VALUE, RE_WHITESPACE, convertCircleToArabic } from './constants';
+import { MARKER_TYPES, EXCLUDE_MARKER_REGEXES, HWP_CHAR_MAP, HWP_CHAR_REGEX, UL_NONE_VALUE, RE_WHITESPACE, convertCircleToArabic, DEFAULT_NUM_CLASS } from './constants';
 import { removeLeadingCharsFromDOM } from './htmlCleaners';
 
 
@@ -114,7 +114,7 @@ export const applyNestedClassesHelper = (cell, baseUlClassName, levelOffset = 0,
 // th 셀은 ul/ol/li, bu_atte 구조가 절대 만들어지면 안 되므로 processCellContent 대신 호출한다.
 // 이미 존재하는 ul/ol/li(붙여넣기 등으로 유입)는 li 내용을 <br>로 이어 붙인 순수 텍스트로 풀어내고,
 // bu_atte 클래스는 제거해 이후 performCleanup이 일반 p처럼 <br>로 처리하게 한다.
-export const flattenHeaderCell = (cell, numClass = 'num') => {
+export const flattenHeaderCell = (cell, numClass = DEFAULT_NUM_CLASS) => {
     let list;
     while ((list = cell.querySelector('ul, ol'))) {
         const items = Array.from(list.children).filter(li => li.tagName === 'LI');
@@ -125,7 +125,7 @@ export const flattenHeaderCell = (cell, numClass = 'num') => {
         });
         list.replaceWith(frag);
     }
-    const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : 'num';
+    const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : DEFAULT_NUM_CLASS;
     // safeNumClass는 사용자가 설정 모달에 자유 입력한 클래스명이라, 공백/따옴표 등이 섞이면
     // 셀렉터 문법 오류(DOMException)로 전체 정리 파이프라인이 중단될 수 있어 방어한다.
     try {
@@ -134,10 +134,10 @@ export const flattenHeaderCell = (cell, numClass = 'num') => {
     cell.querySelectorAll('p.bu_atte').forEach(p => p.classList.remove('bu_atte'));
 };
 
-export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = 'num', boxClassName = null) => {
+export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = DEFAULT_NUM_CLASS, boxClassName = null) => {
     // 빈 문자열/미지정 시 'num'으로 폴백: 클래스가 완전히 없어지면 traverseAndClean이
     // class/style 없는 span을 unwrap하면서 번호 span 자체가 사라지므로 반드시 값이 있어야 한다.
-    const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : 'num';
+    const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : DEFAULT_NUM_CLASS;
     
     const sanitizeSpecialChars = (text) => {
         if (!text) return text;

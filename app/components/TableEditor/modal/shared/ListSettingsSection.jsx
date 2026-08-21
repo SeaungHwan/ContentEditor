@@ -11,6 +11,7 @@
 "use client";
 import React from 'react';
 import { UL_CLASS_SUGGESTIONS, OL_STYLE_PRESETS, OL_OPTIONS, UL_NONE_VALUE } from '../../utils/constants';
+import ManualInputOption from './ManualInputOption';
 
 export default function ListSettingsSection({
     layout,
@@ -18,10 +19,10 @@ export default function ListSettingsSection({
     ulHintTitle, ulValue, onUlChange, ulDropdownKey, ulGuide,
     olDropdownKey, olValue, onOlChange, olGuide,
     olStyleHintTitle, olClassValue, onOlClassChange, numClassValue, onNumClassChange, olStyleDropdownKey, olStyleGuide,
-    atteChecked, onAtteChange, atteGuide, atteDataDropdown,
+    atteChecked, onAtteChange, atteGuide,
     keepChecked, onKeepChange, noListGuide, keepDataDropdown,
     startFrom2Checked, onStartFrom2Change, list2Guide, list2DataDropdown,
-    showColorToggle, colorChecked, onColorChange, colorGuide, colorDataDropdown, colorHintTitle,
+    showColorToggle, colorChecked, onColorChange, colorGuide, colorHintTitle,
     activeDropdown, setActiveDropdown,
 }) {
     const matchedUl = UL_CLASS_SUGGESTIONS.find(opt => opt.value === ulValue);
@@ -67,9 +68,7 @@ export default function ListSettingsSection({
                                         {cls.label}
                                     </li>
                                 ))}
-                                <li className={layout.listItemStyle} onMouseDown={(e) => { e.preventDefault(); setIsUlLocked(false); onUlChange(''); setActiveDropdown(null); }}>
-                                    직접 입력 <i className="ri-edit-line"></i>
-                                </li>
+                                <ManualInputOption layout={layout} onSelect={() => { setIsUlLocked(false); onUlChange(''); setActiveDropdown(null); }} />
                             </ul>
                         )}
                     </div>
@@ -122,7 +121,7 @@ export default function ListSettingsSection({
                 </div>
 
                 <div className={`${layout.flexCol} ${layout.gap06}`}>
-                    <label className={`${layout.checkItem} ${atteGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={atteGuide || undefined} data-dropdown={atteDataDropdown ? "true" : undefined}>
+                    <label className={`${layout.checkItem} ${atteGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} data-guide={atteGuide || undefined}>
                         <input type="checkbox" checked={atteChecked !== false} onChange={(e) => onAtteChange(e.target.checked)} />
                         <span>※ 변환</span>
                     </label>
@@ -135,7 +134,7 @@ export default function ListSettingsSection({
                         <span>시작(리스트2)</span>
                     </label>
                     {showColorToggle && (
-                        <label className={`${layout.checkItem} ${colorGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} title={colorHintTitle} data-guide={colorGuide || undefined} data-dropdown={colorDataDropdown ? "true" : undefined}>
+                        <label className={`${layout.checkItem} ${colorGuide ? `${layout.guideTarget} ${layout.guideBottom}` : ''}`} title={colorHintTitle} data-guide={colorGuide || undefined}>
                             <input type="checkbox" checked={colorChecked || false} onChange={(e) => onColorChange(e.target.checked)} />
                             <span>색상 클래스</span>
                         </label>

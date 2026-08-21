@@ -28,7 +28,8 @@
 import { getDOMParser } from './htmlCleaners';
 import { applyColGroupHelper, applyVerticalHeaders, applyWrapDiv } from './tableFormatters';
 import { applyNestedClassesHelper } from './listExtractors';
-import { formatColWidths } from './constants';
+import { formatColWidths, DEFAULT_BOX_CLASS } from './constants';
+import { resolveLocalConfigNode, parseJsonAttr } from './tableEditUtils';
 
 export const updateStylesOnly = (htmlString, config, colWidths) => {
     if (typeof window === 'undefined' || !document || !htmlString) return htmlString || '';
@@ -42,7 +43,7 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
         isWrapDiv = true,
         isVerticalHeader = false
     } = config;
-    const boxClass = (boxClassName && boxClassName.trim()) || 'box_st2';
+    const boxClass = (boxClassName && boxClassName.trim()) || DEFAULT_BOX_CLASS;
 
     try {
         const parser = getDOMParser();
@@ -52,13 +53,7 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
 
         const allTables = Array.from(tempDiv.querySelectorAll('table'));
         allTables.forEach(table => {
-            let searchNode = table;
-            const tableParent = table.parentElement;
-            if (tableParent && (tableParent.hasAttribute('data-local-config') || tableParent.hasAttribute('data-local-colwidths'))) {
-                searchNode = tableParent;
-            } else if (table.hasAttribute('data-local-config') || table.hasAttribute('data-local-colwidths')) {
-                searchNode = table;
-            }
+            const searchNode = resolveLocalConfigNode(table);
 
             let curWClass = wrapperClass;
             let curWrapDiv = isWrapDiv;
@@ -70,27 +65,19 @@ export const updateStylesOnly = (htmlString, config, colWidths) => {
             let curOlClassName = olClassName;
             let curListStartFrom2 = tableListStartFrom2;
 
-            const localCfgStr = searchNode.getAttribute('data-local-config');
-            if (localCfgStr) {
-                try {
-                    const lCfg = JSON.parse(localCfgStr);
-                    curWClass = lCfg.wrapperClassName;
-                    curWrapDiv = lCfg.isWrapDiv;
-                    curIsVertical = lCfg.isVerticalHeader;
-                    // 예전에 저장된 data-local-config(이 필드들이 추가되기 전)에는 값이 없을 수 있으므로
-                    // undefined일 때는 전역값을 그대로 유지한다.
-                    if (lCfg.tableUlClassName !== undefined) curUlClass = lCfg.tableUlClassName;
-                    if (lCfg.tableOlClassName !== undefined) curOlClassName = lCfg.tableOlClassName;
-                    if (lCfg.tableListStartFrom2 !== undefined) curListStartFrom2 = lCfg.tableListStartFrom2;
-                } catch (e) {}
+            const { str: localCfgStr, value: lCfg } = parseJsonAttr(searchNode, 'data-local-config');
+            if (lCfg) {
+                curWClass = lCfg.wrapperClassName;
+                curWrapDiv = lCfg.isWrapDiv;
+                curIsVertical = lCfg.isVerticalHeader;
+                // 예전에 저장된 data-local-config(이 필드들이 추가되기 전)에는 값이 없을 수 있으므로
+                // undefined일 때는 전역값을 그대로 유지한다.
+                if (lCfg.tableUlClassName !== undefined) curUlClass = lCfg.tableUlClassName;
+                if (lCfg.tableOlClassName !== undefined) curOlClassName = lCfg.tableOlClassName;
+                if (lCfg.tableListStartFrom2 !== undefined) curListStartFrom2 = lCfg.tableListStartFrom2;
             }
-            const localCwStr = searchNode.getAttribute('data-local-colwidths');
-            if (localCwStr) {
-                try {
-                    const lCw = JSON.parse(localCwStr);
-                    curColWidths = formatColWidths(lCw);
-                } catch (e) {}
-            }
+            const { str: localCwStr, value: lCw } = parseJsonAttr(searchNode, 'data-local-colwidths');
+            if (lCw) curColWidths = formatColWidths(lCw);
 
             applyWrapDiv(table, curWClass, curWrapDiv, tempDiv, boxClass);
 

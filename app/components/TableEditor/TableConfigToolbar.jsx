@@ -10,6 +10,7 @@ const TableConfigToolbar = React.memo(({
     handleCopy, handleClear, handleManualClean,
     stats,
     isAutoPasteEnabled, toggleAutoPaste,
+    isChatBotVisible, setIsChatBotVisible,
 }) => {
     const isSpinning = isAutoPasteEnabled;
     return (
@@ -47,6 +48,16 @@ const TableConfigToolbar = React.memo(({
                     </div>
 
                     <div className={layout.homeWrap}>
+                        <button
+                            type="button"
+                            onClick={() => setIsChatBotVisible(!isChatBotVisible)}
+                            className={`${layout.guideBtn} ${isChatBotVisible ? layout.pri : ''}`}
+                            title={isChatBotVisible ? '챗봇 숨기기' : '챗봇 표시'}
+                        >
+                            <div className={layout.guide}>
+                                <i className="ri-chat-3-line" style={{ color: '#fff' }} />
+                            </div>
+                        </button>
                         <button
                             type="button"
                             onClick={toggleAutoPaste}

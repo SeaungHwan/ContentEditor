@@ -19,7 +19,8 @@
  *     (모달이 화면 중앙 기준으로 열리므로 -50% 기본 오프셋에 드래그 delta를 더함)
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
+import { useRafDragListener } from './useRafDragListener';
 
 // 드래그가 끝난 뒤에도 모달을 다시 잡을 수 있도록, 화면 안에 최소한 이만큼은 남겨둔다.
 const MIN_VISIBLE_PX = 40;
@@ -32,43 +33,21 @@ export function useModalDrag() {
     // 이번 드래그 동안 dx/dy가 허용되는 범위. modalRef가 없거나 측정에 실패하면 null(무제한).
     const clampBoundsRef = useRef(null);
 
-    useEffect(() => {
-        // mousemove마다 바로 setState하면 고빈도 리렌더가 발생하므로, 프레임당 최신 좌표
-        // 하나만 반영되도록 requestAnimationFrame으로 묶는다 (최종 위치 값은 동일).
-        let rafId = null;
-        let latestEvent = null;
-
-        const flush = () => {
-            rafId = null;
-            if (!latestEvent) return;
-            const e = latestEvent;
-            let dx = e.clientX - dragStart.current.mouseX;
-            let dy = e.clientY - dragStart.current.mouseY;
-            const bounds = clampBoundsRef.current;
-            if (bounds) {
-                dx = Math.min(Math.max(dx, bounds.minDx), bounds.maxDx);
-                dy = Math.min(Math.max(dy, bounds.minDy), bounds.maxDy);
-            }
-            setDragPos({
-                x: dragStart.current.posX + dx,
-                y: dragStart.current.posY + dy,
-            });
-        };
-
-        const handleMouseMove = (e) => {
-            if (!isDragging.current) return;
-            latestEvent = e;
-            if (rafId === null) rafId = requestAnimationFrame(flush);
-        };
-        const handleMouseUp = () => { isDragging.current = false; };
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-            if (rafId !== null) cancelAnimationFrame(rafId);
-        };
-    }, []);
+    // mousemove마다 바로 setState하면 고빈도 리렌더가 발생하므로, 프레임당 최신 좌표
+    // 하나만 반영되도록 requestAnimationFrame으로 묶는다 (최종 위치 값은 동일).
+    useRafDragListener(isDragging, (e) => {
+        let dx = e.clientX - dragStart.current.mouseX;
+        let dy = e.clientY - dragStart.current.mouseY;
+        const bounds = clampBoundsRef.current;
+        if (bounds) {
+            dx = Math.min(Math.max(dx, bounds.minDx), bounds.maxDx);
+            dy = Math.min(Math.max(dy, bounds.minDy), bounds.maxDy);
+        }
+        setDragPos({
+            x: dragStart.current.posX + dx,
+            y: dragStart.current.posY + dy,
+        });
+    }, () => { isDragging.current = false; });
 
     const handleDragStart = (e) => {
         if (e.button !== 0) return;
