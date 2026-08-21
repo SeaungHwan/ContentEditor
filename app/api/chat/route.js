@@ -14,7 +14,9 @@ const MAX_MESSAGE_LENGTH = 500;
 // Groq 계정에서 실제로 사용 가능한 모델(https://api.groq.com/openai/v1/models 로 확인).
 // 더 높은 품질이 필요하면 'openai/gpt-oss-120b'로 교체.
 const GROQ_MODEL = 'openai/gpt-oss-20b';
-const GEMINI_MODEL = 'gemini-2.0-flash';
+// 특정 버전(gemini-2.0-flash 등)은 계정/시점에 따라 존재하지 않을 수 있어(404),
+// 항상 현재 권장되는 flash 모델을 가리키는 별칭을 사용한다.
+const GEMINI_MODEL = 'gemini-flash-latest';
 
 const GUIDE_REFERENCE = ALL_TOPICS.map((topic) => `- ${topic.label}: ${topic.answer.replace(/\n/g, ' ')}`).join('\n');
 
