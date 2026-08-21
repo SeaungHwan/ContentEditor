@@ -7,7 +7,7 @@
  *   - 기존 GuideModal(주의점 모달)·isGuideMode(호버 가이드)와 독립적으로 동작하며 서로 대체하지 않는다.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './ChatBot.module.css';
 import { CATEGORIES, ALL_TOPICS, QUICK_TOPIC_KEYS, getTopicAnswer } from './chatBotTopics';
 
@@ -60,6 +60,13 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         setSelectedIndex(-1);
     }, []);
 
+    // 닫을 때마다 대화 내역을 비워, 다음에 열었을 때 항상 최초 화면(카테고리 그리드)부터 시작하게 한다.
+    const resetConversation = useCallback(() => {
+        setMessages([]);
+        setInputValue('');
+        closeSuggestions();
+    }, [closeSuggestions]);
+
     const respondWith = useCallback((builder) => {
         const typingId = nextId();
         setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
@@ -92,7 +99,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             });
             if (!res.ok) throw new Error('chat api failed');
             const data = await res.json();
-            return { kind: 'text', text: data.reply };
+            return { kind: 'text', text: data.reply, isAI: true };
         } catch {
             return {
                 kind: 'text',
@@ -126,9 +133,10 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         setInputValue('');
         scrollToBottom();
 
-        const matches = ALL_TOPICS.filter(
-            (topic) => topic.label.includes(text) || topic.answer.includes(text)
-        );
+        // 라벨(짧은 항목명)만 대상으로 매칭한다. 답변 본문까지 포함하면 문단이 길어진 지금은
+        // "설정", "표"처럼 흔한 단어가 거의 모든 답변에 우연히 등장해 엉뚱한 항목들이
+        // 무더기로 걸리고, 정작 AI에게 물어봐야 할 자유 질문이 AI까지 가지 못하게 된다.
+        const matches = ALL_TOPICS.filter((topic) => topic.label.includes(text));
 
         if (matches.length === 1) {
             respondWith(() => ({ kind: 'text', text: matches[0].answer }));
@@ -249,8 +257,21 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
 
     const handlePageTransitionEnd = useCallback((e) => {
         if (e.target !== pageRef.current) return;
-        if (!open) setMounted(false);
-    }, [open]);
+        if (!open) {
+            setMounted(false);
+            resetConversation();
+        }
+    }, [open, resetConversation]);
+
+    // 툴바 토글이나 아이콘 숨김 배지로 위젯 전체가 숨겨질 때는 닫힘 트랜지션이 재생되지 않으므로
+    // (visible=false가 되는 즉시 렌더가 null을 반환), transitionend를 기다리지 않고 즉시 초기화한다.
+    useEffect(() => {
+        if (!visible) {
+            setOpen(false);
+            setMounted(false);
+            resetConversation();
+        }
+    }, [visible, resetConversation]);
 
     if (!visible) return null;
 
@@ -295,7 +316,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                             <div className={styles.chatContent}>
                                 <div className={styles.botBubble}>
                                     <p className={styles.bubbleText}>
-                                        안녕하세요 <strong>도움말 챗봇</strong>입니다.{'\n\n'}
+                                        안녕하세요 <strong>도움말 챗봇</strong>입니다.{'\n'}
                                         아래 메뉴를 이용하거나 궁금한 내용을 직접 입력해보세요!
                                     </p>
                                 </div>
@@ -340,6 +361,9 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                         )}
                                         {message.kind === 'text' && (
                                             <div className={styles.botBubble}>
+                                                {message.isAI && (
+                                                    <span className={styles.aiTag}><i className="ri-sparkling-2-fill" /> AI 답변</span>
+                                                )}
                                                 <p className={styles.bubbleText}>{message.text}</p>
                                             </div>
                                         )}
@@ -407,7 +431,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                             <input
                                 type="text"
                                 className={styles.chatInput}
-                                placeholder="무엇을 도와드릴까요? (최대 200자)"
+                                placeholder="무엇을 도와드릴까요?"
                                 maxLength={200}
                                 value={inputValue}
                                 onChange={handleInputChange}
