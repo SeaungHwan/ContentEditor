@@ -10,6 +10,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './ChatBot.module.css';
 import { CATEGORIES, ALL_TOPICS, QUICK_TOPIC_KEYS, getTopicAnswer } from './chatBotTopics';
+import { searchTopics } from './fuzzyMatch';
+
+// LLM에 함께 보낼 최근 대화 턴 수(사용자+봇 합산 메시지 개수, 토큰 사용량을 억제하기 위한 상한)
+const HISTORY_LIMIT = 6;
 
 const TYPING_DELAY = 700;
 const QUICK_TOPICS = QUICK_TOPIC_KEYS.map((key) => ALL_TOPICS.find((topic) => topic.key === key)).filter(Boolean);
@@ -90,22 +94,32 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         });
     }, [scrollToBottom]);
 
-    const askAI = useCallback(async (text) => {
+    const askAI = useCallback(async (text, history) => {
+        let res;
         try {
-            const res = await fetch('/api/chat', {
+            res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text }),
+                body: JSON.stringify({ message: text, history }),
             });
-            if (!res.ok) throw new Error('chat api failed');
+        } catch {
+            // fetch 자체가 실패 = 네트워크 단절(오프라인, DNS 실패 등)
+            return { kind: 'text', text: '인터넷 연결을 확인해주세요.\n연결이 복구되면 다시 질문해주세요.' };
+        }
+
+        if (res.ok) {
             const data = await res.json();
             return { kind: 'text', text: data.reply, isAI: true };
-        } catch {
-            return {
-                kind: 'text',
-                text: '죄송해요, 지금은 답변을 가져올 수 없어요.\n아래 카테고리나 빠른 답변에서 찾아보시겠어요?',
-            };
         }
+
+        const errorBody = await res.json().catch(() => ({}));
+        const errorMessages = {
+            rate_limited: '질문이 너무 많아요. 잠시 후에 다시 시도해주세요.',
+            timeout: '응답이 너무 오래 걸려서 중단했어요. 다시 한 번 물어봐주시겠어요?',
+            invalid_message: '질문이 너무 길어요. 조금 더 짧게 입력해주세요.',
+        };
+        const fallback = '죄송해요, 지금은 답변을 가져올 수 없어요.\n아래 카테고리나 빠른 답변에서 찾아보시겠어요?';
+        return { kind: 'text', text: errorMessages[errorBody.error] || fallback };
     }, []);
 
     const askAnswer = useCallback((topic) => {
@@ -128,6 +142,12 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         const text = inputValue.trim();
         if (!text) return;
 
+        // 다음 LLM 호출에 실어보낼 대화 맥락(현재 입력을 push하기 전 상태 기준, 최근 N개로 제한).
+        const history = messages
+            .filter((m) => m.kind === 'text')
+            .slice(-HISTORY_LIMIT)
+            .map((m) => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text }));
+
         closeSuggestions();
         setMessages((prev) => [...prev, { id: nextId(), from: 'user', kind: 'text', text }]);
         setInputValue('');
@@ -136,7 +156,8 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         // 라벨(짧은 항목명)만 대상으로 매칭한다. 답변 본문까지 포함하면 문단이 길어진 지금은
         // "설정", "표"처럼 흔한 단어가 거의 모든 답변에 우연히 등장해 엉뚱한 항목들이
         // 무더기로 걸리고, 정작 AI에게 물어봐야 할 자유 질문이 AI까지 가지 못하게 된다.
-        const matches = ALL_TOPICS.filter((topic) => topic.label.includes(text));
+        // 정규화된 부분 문자열 매칭이 실패하면 편집거리 기반으로 오타도 흡수해본다.
+        const matches = searchTopics(text, ALL_TOPICS);
 
         if (matches.length === 1) {
             respondWith(() => ({ kind: 'text', text: matches[0].answer }));
@@ -146,14 +167,14 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             respondWith(() => ({
                 kind: 'options',
                 text: '관련된 항목을 찾았어요. 아래에서 선택해주세요.',
-                options: matches.slice(0, 6),
+                options: matches,
             }));
             return;
         }
 
         // 가이드에 없는 질문 -> 서버(/api/chat)를 거쳐 LLM(Groq -> Gemini 폴백)에게 물어본다.
-        respondWithAsync(() => askAI(text));
-    }, [inputValue, closeSuggestions, respondWith, respondWithAsync, askAI, scrollToBottom]);
+        respondWithAsync(() => askAI(text, history));
+    }, [inputValue, messages, closeSuggestions, respondWith, respondWithAsync, askAI, scrollToBottom]);
 
     const handleInputChange = useCallback((e) => {
         const value = e.target.value;
@@ -164,7 +185,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             closeSuggestions();
             return;
         }
-        const filtered = ALL_TOPICS.filter((topic) => topic.label.includes(query)).slice(0, 7);
+        const filtered = searchTopics(query, ALL_TOPICS, 7);
         setSuggestions(filtered);
         setSelectedIndex(-1);
     }, [closeSuggestions]);
