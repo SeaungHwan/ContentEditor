@@ -30,6 +30,16 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 const FADE_DURATION = 300;
 
+const CHATBOT_VISIBLE_KEY = 'table-editor-chatbot-visible';
+
+// localStorage에 저장된 챗봇 표시 여부를 읽는다 (기본값 true)
+function readChatBotVisible() {
+    try {
+        const stored = localStorage.getItem(CHATBOT_VISIBLE_KEY);
+        return stored === null ? true : stored === 'true';
+    } catch { return true; }
+}
+
 const INITIAL_MODALS = {
     preview: false, guide: false,
     globalTableConfig: false, contentConfig: false, etcConfig: false,
@@ -45,7 +55,14 @@ export default function useModals() {
     const [modals, setModals] = useState(INITIAL_MODALS);
     const [visibleModals, setVisibleModals] = useState(INITIAL_MODALS);
     const [isGuideMode, setIsGuideMode] = useState(false);
-    const [isChatBotVisible, setIsChatBotVisible] = useState(true);
+    const [isChatBotVisible, setIsChatBotVisibleState] = useState(readChatBotVisible);
+    const setIsChatBotVisible = useCallback((value) => {
+        setIsChatBotVisibleState(prev => {
+            const next = typeof value === 'function' ? value(prev) : value;
+            try { localStorage.setItem(CHATBOT_VISIBLE_KEY, String(next)); } catch {}
+            return next;
+        });
+    }, []);
     const [tableEditData, setTableEditData] = useState(INITIAL_TABLE_EDIT_DATA);
 
     const timersRef = useRef({});

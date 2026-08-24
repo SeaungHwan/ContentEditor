@@ -355,6 +355,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                             if (cell) {
                                 if (isImageWithOther) {
                                     Array.from(cell.querySelectorAll('img')).forEach(img => {
+                                        img.alt = '';
                                         const imgWrap = document.createElement('p');
                                         imgWrap.className = 'rsp_img ac';
                                         imgWrap.appendChild(img); // 원래 위치에서 옮겨져 이 p로 감싸짐

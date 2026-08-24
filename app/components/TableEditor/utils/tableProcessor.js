@@ -212,6 +212,7 @@ const applyTableFormats = (container, config, colWidths) => {
                     if (cell) {
                         if (isImageWithOther) {
                             Array.from(cell.querySelectorAll('img')).forEach(img => {
+                                img.alt = '';
                                 const imgWrap = document.createElement('p');
                                 imgWrap.className = 'rsp_img ac';
                                 imgWrap.appendChild(img);
@@ -266,6 +267,7 @@ const applyTableFormats = (container, config, colWidths) => {
                         parent.classList.contains('rsp_img') && parent.classList.contains('ac') &&
                         parent.childNodes.length === 1;
                     if (alreadyWrapped) return;
+                    img.alt = '';
                     const wrap = document.createElement('p');
                     wrap.className = 'rsp_img ac';
                     img.parentNode.insertBefore(wrap, img);
