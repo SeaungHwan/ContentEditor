@@ -27,19 +27,22 @@ function escapeRegExp(str) {
 
 // 봇 답변을 한 번에 보여주지 않고 단어 단위로 순차 노출한다.
 // 토큰을 "단어+뒤따르는 공백/줄바꿈"으로 묶어야 join했을 때 원문의 띄어쓰기·줄바꿈이 그대로 보존된다.
-function AnimatedBotText({ text, onReveal }) {
+function AnimatedBotText({ text, onReveal, onComplete }) {
     const tokens = useMemo(() => text.match(/\S+\s*|\s+/g) || [text], [text]);
     const [count, setCount] = useState(0);
 
     useEffect(() => {
         setCount(0);
-        if (tokens.length === 0) return;
+        if (tokens.length === 0) { onComplete?.(); return; }
         let i = 0;
         const timer = setInterval(() => {
             i += 1;
             setCount(i);
             onReveal?.();
-            if (i >= tokens.length) clearInterval(timer);
+            if (i >= tokens.length) {
+                clearInterval(timer);
+                onComplete?.();
+            }
         }, WORD_REVEAL_INTERVAL);
         return () => clearInterval(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,9 +112,12 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             scrollToBottom();
 
             setTimeout(() => {
-                setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...builder(), id: typingId, from: 'bot' } : m)));
+                const result = builder();
+                setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
                 scrollToBottom();
-                setIsResponding(false);
+                // text는 AnimatedBotText가 단어 단위로 계속 노출 중이므로, 그 노출이 끝날 때(onComplete)
+                // 잠금을 풀어야 한다. text가 아닌 종류(options 등)는 애니메이션이 없으니 바로 푼다.
+                if (result.kind !== 'text') setIsResponding(false);
             }, TYPING_DELAY);
         }, BOT_BUBBLE_DELAY);
     }, [scrollToBottom]);
@@ -127,7 +133,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             asyncBuilder().then((result) => {
                 setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
                 scrollToBottom();
-                setIsResponding(false);
+                if (result.kind !== 'text') setIsResponding(false);
             });
         }, BOT_BUBBLE_DELAY);
     }, [scrollToBottom]);
@@ -427,7 +433,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                                 {message.isAI && (
                                                     <span className={styles.aiTag}><i className="ri-sparkling-2-fill" /> AI 답변</span>
                                                 )}
-                                                <p className={styles.bubbleText}><AnimatedBotText text={message.text} onReveal={scrollToBottom} /></p>
+                                                <p className={styles.bubbleText}><AnimatedBotText text={message.text} onReveal={scrollToBottom} onComplete={() => setIsResponding(false)} /></p>
                                             </div>
                                         )}
                                         {message.kind === 'options' && (
