@@ -620,6 +620,15 @@
     font-size: 1rem;
 }
 
+/* 답변이 오는 중에는 새 질문을 못 보내게 잠그면서(isResponding), 흐리게 표시해 대기 중임을 알린다 */
+.categoryItem:disabled,
+.quickTopicBtn:disabled,
+.optionBtn:disabled,
+.sendBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 @media (max-width: 500px) {
 
     .chatbotHeaderLeft .chatBotIcon img {

@@ -74,6 +74,10 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
     const [suggestions, setSuggestions] = useState([]);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isDragging, setIsDragging] = useState(false);
+    // 답변이 오는 중(타이핑 표시 ~ 완성된 답변) 새 질문을 못 보내게 막는 잠금. 이게 없으면
+    // 버튼을 연타했을 때 respondWith가 각자 독립된 타이머로 동시에 여러 개 돌면서
+    // 봇 답변이 한꺼번에 쏟아져 나온다.
+    const [isResponding, setIsResponding] = useState(false);
 
     const bodyRef = useRef(null);
     const pageRef = useRef(null);
@@ -99,6 +103,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
 
     const respondWith = useCallback((builder) => {
         const typingId = nextId();
+        setIsResponding(true);
         setTimeout(() => {
             setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
             scrollToBottom();
@@ -106,6 +111,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             setTimeout(() => {
                 setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...builder(), id: typingId, from: 'bot' } : m)));
                 scrollToBottom();
+                setIsResponding(false);
             }, TYPING_DELAY);
         }, BOT_BUBBLE_DELAY);
     }, [scrollToBottom]);
@@ -113,6 +119,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
     // 규칙 기반 매칭이 실패했을 때만 쓰는 비동기 응답 경로 (LLM 폴백, /api/chat 호출)
     const respondWithAsync = useCallback((asyncBuilder) => {
         const typingId = nextId();
+        setIsResponding(true);
         setTimeout(() => {
             setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
             scrollToBottom();
@@ -120,6 +127,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             asyncBuilder().then((result) => {
                 setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
                 scrollToBottom();
+                setIsResponding(false);
             });
         }, BOT_BUBBLE_DELAY);
     }, [scrollToBottom]);
@@ -153,12 +161,14 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
     }, []);
 
     const askAnswer = useCallback((topic) => {
+        if (isResponding) return;
         setMessages((prev) => [...prev, { id: nextId(), from: 'user', kind: 'text', text: topic.label }]);
         scrollToBottom();
         respondWith(() => ({ kind: 'text', text: getTopicAnswer(topic.key) }));
-    }, [respondWith, scrollToBottom]);
+    }, [isResponding, respondWith, scrollToBottom]);
 
     const handleCategoryClick = useCallback((category) => {
+        if (isResponding) return;
         setMessages((prev) => [...prev, { id: nextId(), from: 'user', kind: 'text', text: category.label }]);
         scrollToBottom();
         respondWith(() => ({
@@ -166,9 +176,10 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
             text: `${category.label} 중 궁금하신 항목을 선택해주세요.`,
             options: category.topics,
         }));
-    }, [respondWith, scrollToBottom]);
+    }, [isResponding, respondWith, scrollToBottom]);
 
     const handleSend = useCallback(() => {
+        if (isResponding) return;
         const text = inputValue.trim();
         if (!text) return;
 
@@ -204,7 +215,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
 
         // 가이드에 없는 질문 -> 서버(/api/chat)를 거쳐 LLM(Groq -> Gemini 폴백)에게 물어본다.
         respondWithAsync(() => askAI(text, history));
-    }, [inputValue, messages, closeSuggestions, respondWith, respondWithAsync, askAI, scrollToBottom]);
+    }, [isResponding, inputValue, messages, closeSuggestions, respondWith, respondWithAsync, askAI, scrollToBottom]);
 
     const handleInputChange = useCallback((e) => {
         const value = e.target.value;
@@ -377,6 +388,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                             key={category.key}
                                             className={styles.categoryItem}
                                             type="button"
+                                            disabled={isResponding}
                                             onClick={() => handleCategoryClick(category)}
                                         >
                                             <i className={category.icon} />
@@ -399,7 +411,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                             return (
                                 <div
                                     key={message.id}
-                                    className={`${styles.chatRow}${message.kind === 'typing' ? ` ${styles.botTyping}` : ''}`}
+                                    className={styles.chatRow}
                                 >
                                     <div className={styles.botAvatar}>
                                         <img src="/chatbot/chatbot.png" alt="챗봇" />
@@ -427,6 +439,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                                             key={topic.key}
                                                             className={styles.optionBtn}
                                                             type="button"
+                                                            disabled={isResponding}
                                                             onClick={() => askAnswer(topic)}
                                                         >
                                                             {topic.label}
@@ -453,6 +466,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                 key={topic.key}
                                 className={styles.quickTopicBtn}
                                 type="button"
+                                disabled={isResponding}
                                 onClick={() => handleQuickTopicClick(topic)}
                             >
                                 <i className="ri-question-line" />
@@ -489,7 +503,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                 onKeyDown={handleInputKeyDown}
                                 onBlur={handleInputBlur}
                             />
-                            <button className={styles.sendBtn} type="button" onClick={handleSend} aria-label="메시지 전송">
+                            <button className={styles.sendBtn} type="button" disabled={isResponding} onClick={handleSend} aria-label="메시지 전송">
                                 <i className="ri-arrow-right-line" />
                             </button>
                         </div>
