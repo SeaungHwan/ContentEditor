@@ -134,7 +134,7 @@ export const flattenHeaderCell = (cell, numClass = DEFAULT_NUM_CLASS) => {
     cell.querySelectorAll('p.bu_atte').forEach(p => p.classList.remove('bu_atte'));
 };
 
-export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = DEFAULT_NUM_CLASS, boxClassName = null) => {
+export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 = null, tit2 = null, tit3 = null, olType = [], noUl = false, noAtte = false, numClass = DEFAULT_NUM_CLASS, boxClassName = null, hasDecimalDotSeries = false) => {
     // 빈 문자열/미지정 시 'num'으로 폴백: 클래스가 완전히 없어지면 traverseAndClean이
     // class/style 없는 span을 unwrap하면서 번호 span 자체가 사라지므로 반드시 값이 있어야 한다.
     const safeNumClass = (numClass && numClass.trim()) ? numClass.trim() : DEFAULT_NUM_CLASS;
@@ -182,6 +182,14 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
     const normalizeBrBlocks = (container) => {
         // UL/OL: LI 안에 <br> + 마커가 있으면 개별 <p>로 언래핑
         Array.from(container.querySelectorAll('ul, ol')).forEach(list => {
+            // container.querySelectorAll('ul, ol')은 container 안에 중첩 표(nested table)가 있으면
+            // 그 표의 셀 내부 ul/ol까지 전부 잡아온다. 중첩 표는 이미 자기 차례에 독립적으로
+            // processCellContent가 처리를 끝낸 상태라(예: 마커+br → ul/li 변환 완료), 여기서 다시
+            // 손대면 이미 완성된 리스트가 <p>로 도로 풀어헤쳐진다. list와 container 사이에 표 경계가
+            // 있으면(=list가 container 안에 중첩된 표의 셀 소속이면) 건너뛴다.
+            const nestedTable = list.parentElement && list.parentElement.closest('table');
+            if (nestedTable && container.contains(nestedTable)) return;
+
             // list.querySelectorAll('li')는 중첩된 하위 리스트의 li까지 전부 가져온다. 하위 리스트는
             // 이 바깥 container.querySelectorAll('ul, ol') 스캔에서 자기 차례에 독립적으로 처리되므로,
             // 여기서는 이 list의 직계 li만 다뤄야 한다. 그렇지 않으면 아래 lis.forEach가 하위 리스트의
@@ -486,8 +494,9 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
 
             // 외부 텍스트에서 decimal-dot(1. 내용)이 짧을 때:
             // - 같은 블록에 다른 decimal-dot 항목(길이 무관)이 있으면 → 연속 목록의 일부
-            // - 없으면 → 제목 후보로 보존 (<p>)
-            if (markerType === 'decimal-dot' && isOuterText && rawText.trim().length <= 15) {
+            // - hasDecimalDotSeries(문서 전체 기준, 표에 끊긴 절 제목 포함)가 있어도 → 연속 목록의 일부
+            // - 정말 문서 전체에서 완전히 단독이면 → 제목 후보로 보존 (<p>)
+            if (markerType === 'decimal-dot' && isOuterText && rawText.trim().length <= 15 && !hasDecimalDotSeries) {
                 let rangeStart = 0;
                 for (let j = i - 1; j >= 0; j--) {
                     if (isSectionBoundary(childNodes[j], originalTexts[j])) { rangeStart = j + 1; break; }

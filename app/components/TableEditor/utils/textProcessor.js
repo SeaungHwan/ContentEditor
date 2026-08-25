@@ -37,7 +37,7 @@ import { UL_NONE_VALUE, DEFAULT_LINK_CLASS, DEFAULT_MAIL_CLASS, DEFAULT_NUM_CLAS
 const processTextContentBase = (containerDOM, config, isColorMode, isColorClassMode) => {
     if (!containerDOM || !config) return;
 
-    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, olClassName, numClassName, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2, linkClassName, mailClassName } = config;
+    const { keepMarker, useAtteMarker, ulClassName: ulClass, olType, olClassName, numClassName, tit1, tit2, tit3, tit1Class, tit2Class, tit3Class, listStartFrom2, linkClassName, mailClassName, hasDecimalDotSeries } = config;
     const noUl = ulClass === UL_NONE_VALUE;
     const noAtte = useAtteMarker === false;
     const numClass = (numClassName && numClassName.trim()) ? numClassName.trim() : DEFAULT_NUM_CLASS;
@@ -46,7 +46,7 @@ const processTextContentBase = (containerDOM, config, isColorMode, isColorClassM
 
     // 1. 셀 내용 처리 및 클래스 적용
     processMsoLists(containerDOM);
-    processCellContent(containerDOM, keepMarker, true, tit1, tit2, tit3, olType, noUl, noAtte, numClass);
+    processCellContent(containerDOM, keepMarker, true, tit1, tit2, tit3, olType, noUl, noAtte, numClass, null, !!hasDecimalDotSeries);
     applyNestedClassesHelper(containerDOM, ulClass, listStartFrom2 ? 1 : 0, olClassName);
     performCleanup(containerDOM, numClass);
 

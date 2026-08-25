@@ -236,6 +236,18 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
         onlyChild.remove();
     }
 
+    // 표가 사이에 끼면 아래 순회 루프가 텍스트를 표 단위로 끊어(flushTextGroup) 처리하므로,
+    // "1. 제목" 뒤에 표가 바로 이어지는 문서에서는 processCellContent가 한 번에 보는 범위 안에
+    // "2.", "3." 같은 형제를 절대 찾을 수 없다(항상 혼자인 것처럼 보임). 문서 전체(표로 끊긴
+    // 절 제목 포함) 기준으로 decimal-dot 마커가 2개 이상이면 번호가 이어지는 시리즈로 보고,
+    // 표에 끊긴 짧은 단독 제목도 다른 형제들과 동일하게 목록으로 변환되도록 신호를 내려보낸다.
+    const decimalDotCount = Array.from(doc.body.childNodes).filter(node => {
+        if (node.nodeType !== 1) return false;
+        if (node.tagName === 'TABLE' || node.querySelector?.('table')) return false;
+        return _detectMarkerType(node.textContent || '') === 'decimal-dot';
+    }).length;
+    if (decimalDotCount >= 2) config = { ...config, hasDecimalDotSeries: true };
+
     const resultWrapper = document.createElement('div');
     let currentTextGroup = document.createElement('div');
     let currentTableGroup = document.createElement('div');
