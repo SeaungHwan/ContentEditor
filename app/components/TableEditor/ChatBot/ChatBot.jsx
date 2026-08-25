@@ -21,8 +21,43 @@ const WORD_REVEAL_INTERVAL = 45;
 const BOT_BUBBLE_DELAY = 500;
 const QUICK_TOPICS = QUICK_TOPIC_KEYS.map((key) => ALL_TOPICS.find((topic) => topic.key === key)).filter(Boolean);
 
+// 테마: 색상은 ChatBot.module.css의 --cb-* 변수로 전환된다. swatch1/2는 모달의 미리보기 원형용(실제 CSS
+// 변수와 같은 색을 그대로 복사해둔 것 — 테마를 적용하지 않고도 인라인 style로 미리 보여줘야 해서 중복 보관).
+// 테마별 이미지(chatbot_{key}.png 1개)는 /public/chatbot/에 직접 추가해서 사용한다. 런처 버튼과 아바타에
+// 같은 이미지를 그대로 재사용한다(예전엔 chatbot_btn_{key}.png를 따로 뒀지만 결국 같은 이미지라 통합).
+const THEME_STORAGE_KEY = 'table-editor-chatbot-theme';
+const THEMES = {
+    default: { className: '', label: '기본', image: '/chatbot/chatbot.png', swatch1: '#257FB8', swatch2: '#244FAF' },
+    yadon: { className: 'themeYadon', label: '야돈', image: '/chatbot/chatbot_yadon.png', swatch1: '#FFB8B8', swatch2: '#E88890' },
+    pikachu: { className: 'themePikachu', label: '피카츄', image: '/chatbot/chatbot_pikachu.png', swatch1: '#FFE64D', swatch2: '#FFD800' },
+    psyduck: { className: 'themePsyduck', label: '고라파덕', image: '/chatbot/chatbot_psyduck.png', swatch1: '#F8D8A0', swatch2: '#DDA84A' },
+};
+
+function readTheme() {
+    try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        return THEMES[stored] ? stored : 'default';
+    } catch { return 'default'; }
+}
+
 function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 테마별 말투 — 원본 답변 텍스트는 그대로 두고(LLM 대화 이력에 캐릭터 말투가 섞이면 안 되므로),
+// 화면에 보여줄 때만 렌더링 시점에 씌운다. 야돈은 문장 끝(다/요/죠)마다 늘어지는 "~양"을 붙이고,
+// 피카츄/고라파덕은 원작에서 자기 울음소리만 반복하는 것처럼 답변 끝에 캐릭터 특유의 소리를 덧붙인다.
+function applyThemeSpeech(text, themeKey) {
+    if (themeKey === 'yadon') {
+        return text.replace(/(다|요|죠)(?=[.!?~]|\s|$)/g, '$1~양');
+    }
+    if (themeKey === 'pikachu') {
+        return `${text}\n\n피카피카! ⚡`;
+    }
+    if (themeKey === 'psyduck') {
+        return `${text}\n\n파덕파덕...? 🐥`;
+    }
+    return text;
 }
 
 // 봇 답변을 한 번에 보여주지 않고 단어 단위로 순차 노출한다.
@@ -72,6 +107,8 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
     // 그려줘서 트랜지션이 재생된다(같은 렌더에서 한꺼번에 켜면 트랜지션 없이 바로 열린 것처럼 보임).
     const [mounted, setMounted] = useState(false);
     const [open, setOpen] = useState(false);
+    const [theme, setTheme] = useState(readTheme);
+    const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -301,6 +338,15 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         askAnswer(topic);
     }, [askAnswer]);
 
+    const openThemeModal = useCallback(() => setIsThemeModalOpen(true), []);
+    const closeThemeModal = useCallback(() => setIsThemeModalOpen(false), []);
+
+    const selectTheme = useCallback((key) => {
+        setTheme(key);
+        try { localStorage.setItem(THEME_STORAGE_KEY, key); } catch { /* 저장 실패해도 이번 세션 표시는 정상 동작 */ }
+        setIsThemeModalOpen(false);
+    }, []);
+
     // 열기: 먼저 보이게(mounted) 한 뒤, 두 프레임 뒤에 open을 켜서 닫힌 상태 -> 열린 상태로
     // 트랜지션이 재생되게 한다(reflow 없이 같은 프레임에서 켜면 애니메이션 없이 바로 열려버린다).
     const openChat = useCallback(() => {
@@ -343,14 +389,16 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
 
     if (!visible) return null;
 
+    const themeInfo = THEMES[theme];
+
     return (
-        <div className={styles.chatbot}>
+        <div className={`${styles.chatbot} ${styles[themeInfo.className] || ''}`}>
             <div className={`${styles.chatBotWrap} ${open ? styles.isOpen : ''}`}>
                 <button className={styles.chatBotClose} type="button" aria-label="챗봇 아이콘 숨기기" onClick={onHide}>
                     <i className="ri-close-fill" />
                 </button>
                 <button className={styles.chatBotBtn} type="button" aria-label="AI 챗봇 열기" onClick={toggleChat}>
-                    <img src="/chatbot/chatbot_btn.png" alt="" />
+                    <img src={themeInfo.image} alt="" />
                     <span>AI 챗봇</span>
                 </button>
             </div>
@@ -364,22 +412,58 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                     <div className={styles.chatbotHeader}>
                         <div className={styles.chatbotHeaderLeft}>
                             <div className={styles.chatBotIcon}>
-                                <img src="/chatbot/chatbot.png" alt="" />
+                                <img src={themeInfo.image} alt="" />
                             </div>
                             <div className={styles.headerTit}>
                                 <h3>컨텐츠 에디터</h3>
                                 <span className={styles.chatbotTitle}>도움말 챗봇</span>
                             </div>
                         </div>
-                        <button className={styles.chatBotClose2} type="button" onClick={closeChat} aria-label="챗봇 닫기">
-                            <img src="/chatbot/close.png" alt="" />
-                        </button>
+                        <div className={styles.chatbotHeaderRight}>
+                            <button className={styles.themeToggleBtn} type="button" onClick={openThemeModal} aria-label={`테마 선택 (현재: ${themeInfo.label})`} title={`테마: ${themeInfo.label} (클릭해서 변경)`}>
+                                <i className="ri-palette-line" />
+                            </button>
+                            <button className={styles.chatBotClose2} type="button" onClick={closeChat} aria-label="챗봇 닫기">
+                                <i className="ri-close-line" />
+                            </button>
+                        </div>
                     </div>
+
+                    {isThemeModalOpen && (
+                        <div className={styles.themeModalOverlay} onClick={closeThemeModal}>
+                            <div className={styles.themeModal} onClick={(e) => e.stopPropagation()}>
+                                <div className={styles.themeModalHeader}>
+                                    <span>테마 선택</span>
+                                    <button type="button" className={styles.themeModalClose} onClick={closeThemeModal} aria-label="닫기">
+                                        <i className="ri-close-line" />
+                                    </button>
+                                </div>
+                                <div className={styles.themeModalGrid}>
+                                    {Object.entries(THEMES).map(([key, info]) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            className={`${styles.themeOption} ${theme === key ? styles.themeOptionActive : ''}`}
+                                            onClick={() => selectTheme(key)}
+                                        >
+                                            <span className={styles.themeSwatchWrap}>
+                                                <span className={styles.themeSwatch} style={{ background: `linear-gradient(135deg, ${info.swatch1}, ${info.swatch2})` }}>
+                                                    <img src={info.image} alt="" />
+                                                </span>
+                                                {theme === key && <i className={`ri-check-line ${styles.themeCheck}`} />}
+                                            </span>
+                                            <span>{info.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className={styles.chatbotBody} ref={bodyRef}>
                         <div className={`${styles.chatRow} ${styles.staticRow}`}>
                             <div className={styles.botAvatar}>
-                                <img src="/chatbot/chatbot.png" alt="챗봇" />
+                                <img src={themeInfo.image} alt="챗봇" />
                             </div>
                             <div className={styles.chatContent}>
                                 <div className={styles.botBubble}>
@@ -420,7 +504,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                     className={styles.chatRow}
                                 >
                                     <div className={styles.botAvatar}>
-                                        <img src="/chatbot/chatbot.png" alt="챗봇" />
+                                        <img src={themeInfo.image} alt="챗봇" />
                                     </div>
                                     <div className={styles.chatContent}>
                                         {message.kind === 'typing' && (
@@ -433,12 +517,12 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                                 {message.isAI && (
                                                     <span className={styles.aiTag}><i className="ri-sparkling-2-fill" /> AI 답변</span>
                                                 )}
-                                                <p className={styles.bubbleText}><AnimatedBotText text={message.text} onReveal={scrollToBottom} onComplete={() => setIsResponding(false)} /></p>
+                                                <p className={styles.bubbleText}><AnimatedBotText text={applyThemeSpeech(message.text, theme)} onReveal={scrollToBottom} onComplete={() => setIsResponding(false)} /></p>
                                             </div>
                                         )}
                                         {message.kind === 'options' && (
                                             <div className={styles.botBubble}>
-                                                <p className={styles.bubbleText}>{message.text}</p>
+                                                <p className={styles.bubbleText}>{applyThemeSpeech(message.text, theme)}</p>
                                                 <div className={styles.optionList}>
                                                     {message.options.map((topic) => (
                                                         <button

@@ -15,8 +15,81 @@
     height: 3.75rem;
     box-sizing: border-box;
     z-index: 2000;
+
+    /* 기본(파랑) 테마 색상 — 테마 추가 시 이 변수들만 덮어쓰면 됨 */
+    /* --cb-on-primary: 헤더/사용자 말풍선처럼 --cb-primary·그라데이션 위에 얹히는 글자·아이콘 색.
+       기본값은 흰색이고, 배경이 밝은 노랑 계열(피카츄/고라파덕)인 테마만 검정으로 덮어쓴다. */
+    --cb-on-primary: #fff;
+    --cb-grad1: #257FB8;
+    --cb-grad2: #244FAF;
+    --cb-primary: #234FAF;
+    --cb-accent: #2C5FC9;
+    --cb-accent2: #5B88E6;
+    --cb-light: #EEF6FF;
+    --cb-light2: #F2F6FF;
+    --cb-border-light: #CFDFFF;
+    --cb-dot: #A9BEEB;
+    --cb-shadow-btn: rgb(11 134 162 / 15%);
+    --cb-shadow-bubble: rgb(18 96 188 / 15%);
+    --cb-shadow-cat: rgb(35 79 175 / 5%);
+    --cb-shadow-opt: rgb(35 79 175 / 25%);
 }
 
+/* 야돈(Slowpoke) 테마 — chatbot_yadon.png 스프라이트를 캔버스로 픽셀 샘플링해서 뽑은 실제 몸통 핑크
+   (#FFB8B8)·음영 핑크(#E88890)·배 크림색(#F8F0C8)을 그대로 사용 */
+.chatbot.themeYadon {
+    --cb-grad1: #FFB8B8;
+    --cb-grad2: #E88890;
+    --cb-primary: #E88890;
+    --cb-accent: #E88890;
+    --cb-accent2: #F0A0AC;
+    --cb-light: #F8F0C8;
+    --cb-light2: #F5E8B8;
+    --cb-border-light: #F8D0B8;
+    --cb-dot: #FFC8CC;
+    --cb-shadow-btn: rgb(232 136 144 / 20%);
+    --cb-shadow-bubble: rgb(232 136 144 / 20%);
+    --cb-shadow-cat: rgb(232 136 144 / 8%);
+    --cb-shadow-opt: rgb(232 136 144 / 30%);
+}
+
+/* 피카츄 테마 — chatbot_pikachu.png에서 가장 많은 픽셀을 차지한 진짜 몸통 노랑(#FFD800)과
+   볼 빨강(#E80028)을 그대로 사용 */
+.chatbot.themePikachu {
+    --cb-on-primary: #222;
+    --cb-grad1: #FFE64D;
+    --cb-grad2: #FFD800;
+    --cb-primary: #FFD800;
+    --cb-accent: #E80028;
+    --cb-accent2: #D6002A;
+    --cb-light: #FFF9DB;
+    --cb-light2: #FFF3B8;
+    --cb-border-light: #FFE873;
+    --cb-dot: #FFD800;
+    --cb-shadow-btn: rgb(255 216 0 / 25%);
+    --cb-shadow-bubble: rgb(255 216 0 / 25%);
+    --cb-shadow-cat: rgb(255 216 0 / 10%);
+    --cb-shadow-opt: rgb(232 0 40 / 20%);
+}
+
+/* 고라파덕(Psyduck) 테마 — chatbot_psyduck.png에서 뽑은 실제 몸통 톤(크림 #F8D8A0 ~ 진한 황금빛
+   #E0B878)만 사용해 채도를 살렸다. 이전 버전은 스프라이트에 없는 회청색을 억지로 섞어 탁해 보였음 */
+.chatbot.themePsyduck {
+    --cb-on-primary: #222;
+    --cb-grad1: #F8D8A0;
+    --cb-grad2: #DDA84A;
+    --cb-primary: #C99A3C;
+    --cb-accent: #A87830;
+    --cb-accent2: #96692A;
+    --cb-light: #FBF3E4;
+    --cb-light2: #F8EAD0;
+    --cb-border-light: #F0DCB0;
+    --cb-dot: #E0B878;
+    --cb-shadow-btn: rgb(201 154 60 / 20%);
+    --cb-shadow-bubble: rgb(201 154 60 / 20%);
+    --cb-shadow-cat: rgb(201 154 60 / 8%);
+    --cb-shadow-opt: rgb(201 154 60 / 30%);
+}
 
 .chatbot * {
     box-sizing: border-box;
@@ -50,7 +123,7 @@
 .chatBotBtn {
     width: 3.75rem;
     height: 3.75rem;
-    background: linear-gradient(158.88deg, #257FB8 10.72%, #244FAF 89.06%);
+    background: linear-gradient(158.88deg, var(--cb-grad1) 10.72%, var(--cb-grad2) 89.06%);
     border-radius: 50%;
     display: flex;
     flex-direction: column;
@@ -58,7 +131,7 @@
     justify-content: center;
     gap: 0.25rem;
     cursor: pointer;
-    box-shadow: 0 0 5px 3px rgb(11 134 162 / 15%);
+    box-shadow: 0 0 5px 3px var(--cb-shadow-btn);
 }
 
 .chatBotBtn img {
@@ -70,7 +143,7 @@
 .chatBotBtn span {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #fff;
+    color: var(--cb-on-primary);
     letter-spacing: 0;
     line-height: 1;
 }
@@ -101,6 +174,7 @@
 }
 
 .chatbotContainer {
+    position: relative;
     display: flex;
     flex-direction: column;
     width: 25rem;
@@ -117,7 +191,7 @@
     align-items: center;
     height: 4.4rem;
     padding: 1rem;
-    background: linear-gradient(91.37deg, #257FB8 0.53%, #244FAF 99.87%);
+    background: linear-gradient(91.37deg, var(--cb-grad1) 0.53%, var(--cb-grad2) 99.87%);
     flex-shrink: 0;
     justify-content: space-between;
 }
@@ -137,6 +211,7 @@
 
 .chatBotIcon img {
     max-width: 3.55rem;
+    max-height: 3rem;
     width: 100%;
     height: auto;
 }
@@ -150,16 +225,41 @@
     font-size: 0.8rem;
     font-weight: 400;
     letter-spacing: 0;
-    color: #fff;
+    color: var(--cb-on-primary);
     margin: 0;
 }
 
 .chatbotTitle {
     font-size: 1rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--cb-on-primary);
     letter-spacing: 0;
     text-align: center;
+}
+
+.chatbotHeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.themeToggleBtn {
+    display: flex;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    color: var(--cb-on-primary);
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+}
+
+.themeToggleBtn:hover,
+.themeToggleBtn:focus {
+    opacity: 1;
 }
 
 .chatBotClose2 {
@@ -169,11 +269,16 @@
     justify-content: center;
     background: none;
     border: 0;
+    color: var(--cb-on-primary);
+    font-size: 1.1rem;
     cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.15s;
 }
 
-.chatBotClose2 img {
-    max-width: 100%;
+.chatBotClose2:hover,
+.chatBotClose2:focus {
+    opacity: 1;
 }
 
 .chatbotBody {
@@ -214,7 +319,7 @@
 .botAvatar {
     width: 2.5rem;
     height: 2.5rem;
-    background: #234FAF;
+    background: var(--cb-primary);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -225,8 +330,12 @@
 
 .botAvatar img {
     max-width: 2.25rem;
-    width: 100%;
+    max-height: 2rem;
     height: auto;
+}
+
+.chatbot.themeYadon .botAvatar img {
+    max-width: 2rem;
 }
 
 .chatContent {
@@ -245,7 +354,7 @@
     flex-direction: column;
     gap: 0.5rem;
     overflow: hidden;
-    box-shadow: 0px 0px 5px 0 rgb(18 96 188 / 15%);
+    box-shadow: 0px 0px 5px 0 var(--cb-shadow-bubble);
 }
 
 .aiTag {
@@ -255,8 +364,8 @@
     align-self: flex-start;
     padding: 0.1rem 0.4rem;
     border-radius: 1rem;
-    background: #EEF6FF;
-    color: #234FAF;
+    background: var(--cb-light);
+    color: var(--cb-accent);
     font-size: 0.6rem;
     font-weight: 600;
 }
@@ -274,8 +383,8 @@
 
 .userBubble {
     max-width: 100%;
-    background: #234FAF;
-    color: #fff;
+    background: var(--cb-primary);
+    color: var(--cb-on-primary);
     border-radius: 1.25rem 0 1.25rem 1.25rem;
     padding: 0.75rem 1rem;
     font-size: 0.8rem;
@@ -302,7 +411,7 @@
     border-radius: 0.75rem;
     cursor: pointer;
     transition: 0.3s all;
-    border: 1px solid #CFDFFF;
+    border: 1px solid var(--cb-border-light);
     padding: 0.5rem;
     overflow: hidden;
 }
@@ -316,14 +425,14 @@
     width: 4.1rem;
     height: 4.1rem;
     border-radius: 50%;
-    background: rgb(35 79 175 / 5%);
+    background: var(--cb-shadow-cat);
     z-index: 0;
     transition: 0.3s all;
 }
 
 .categoryItem i {
     font-size: 1rem;
-    color: #2C5FC9;
+    color: var(--cb-accent);
     line-height: 1;
     z-index: 1;
 }
@@ -343,14 +452,14 @@
 
 .categoryItem:hover,
 .categoryItem:focus {
-    border: 1px solid #234FAF;
+    border: 1px solid var(--cb-accent);
 }
 
 .categoryItem:hover span,
 .categoryItem:focus span,
 .categoryItem:hover i,
 .categoryItem:focus i {
-    color: #2C5FC9;
+    color: var(--cb-accent);
 }
 
 .categoryItem:hover span,
@@ -369,7 +478,7 @@
     width: 100%;
     height: auto;
     padding: 0.5rem 0.75rem;
-    background: #F2F6FF;
+    background: var(--cb-light2);
     border-radius: 0.5rem;
     border: 1px solid transparent;
     font-size: 0.8rem;
@@ -378,16 +487,16 @@
     letter-spacing: -0.016rem;
     transition: background 0.15s, color 0.15s;
     text-align: center;
-    color: #5B88E6;
+    color: var(--cb-accent2);
 }
 
 .optionBtn:hover,
 .optionBtn:focus {
     background: #fff;
     font-weight: 600;
-    color: #234FAF;
-    border: 1px solid #234FAF;
-    box-shadow: 0 0 5px 0 rgb(35 79 175 / 25%);
+    color: var(--cb-accent);
+    border: 1px solid var(--cb-accent);
+    box-shadow: 0 0 5px 0 var(--cb-shadow-opt);
 }
 
 .typingBubble {
@@ -407,7 +516,7 @@
     width: 0.4rem;
     height: 0.4rem;
     border-radius: 50%;
-    background: #A9BEEB;
+    background: var(--cb-dot);
     animation: typingBounce 1.2s infinite ease-in-out;
 }
 
@@ -499,7 +608,7 @@
 
 .autocompleteItem:hover,
 .autocompleteItem.isSelected {
-    background: #F2F6FF;
+    background: var(--cb-light2);
 }
 
 .autocompleteItem mark {
@@ -536,10 +645,10 @@
     align-items: center;
     gap: 0.3rem;
     padding: 0.4rem 0.7rem;
-    background: #F2F6FF;
-    border: 1px solid #CFDFFF;
+    background: var(--cb-light2);
+    border: 1px solid var(--cb-border-light);
     border-radius: 1rem;
-    color: #234FAF;
+    color: var(--cb-accent);
     font-size: 0.7rem;
     font-weight: 500;
     letter-spacing: -0.016rem;
@@ -555,9 +664,9 @@
 
 .quickTopicBtn:hover,
 .quickTopicBtn:focus {
-    background: #234FAF;
-    border-color: #234FAF;
-    color: #fff;
+    background: var(--cb-primary);
+    border-color: var(--cb-primary);
+    color: var(--cb-on-primary);
 }
 
 .chatbotFooter {
@@ -577,8 +686,8 @@
     height: 2.8rem;
     padding: 0.5rem 1rem;
     gap: 0;
-    border: 1px solid #234FAF;
-    background: #EEF6FF;
+    border: 1px solid var(--cb-accent);
+    background: var(--cb-light);
     border-radius: 2.5rem;
 }
 
@@ -607,8 +716,8 @@
     height: 1.8rem;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    background: #234faf;
+    color: var(--cb-on-primary);
+    background: var(--cb-primary);
     border-radius: 50%;
     flex-shrink: 0;
     padding: 0;
@@ -627,6 +736,139 @@
 .sendBtn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.themeModalOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 22, 30, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 1.5rem;
+    animation: chatRowFadeIn 0.2s ease-out;
+}
+
+/* 챗봇 본체와 같은 카드 톤(둥근 모서리·그림자)을 그대로 가져와 별개의 시스템 다이얼로그가 아니라
+   챗봇의 일부처럼 보이게 한다. 헤더도 chatbotHeader와 동일하게 현재 테마 그라데이션을 쓴다. */
+.themeModal {
+    width: 100%;
+    max-width: 19rem;
+    background: #fff;
+    border-radius: 0.9rem;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.themeModalHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.1rem;
+    background: linear-gradient(91.37deg, var(--cb-grad1) 0.53%, var(--cb-grad2) 99.87%);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--cb-on-primary);
+}
+
+.themeModalClose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border: 0;
+    border-radius: 50%;
+    font-size: 0.95rem;
+    color: var(--cb-on-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.themeModalClose:hover,
+.themeModalClose:focus {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.themeModalGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    padding: 1.1rem;
+    background: #F7FAF9;
+}
+
+.themeOption {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 0.5rem 0.7rem;
+    background: #fff;
+    border: 2px solid transparent;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: 0.2s all;
+    box-shadow: 0px 0px 5px 0 rgba(0, 0, 0, 0.08);
+}
+
+.themeOption:hover,
+.themeOption:focus {
+    transform: translateY(-0.1rem);
+    box-shadow: 0px 4px 10px 0 rgba(0, 0, 0, 0.12);
+}
+
+.themeOptionActive {
+    border-color: var(--cb-accent);
+}
+
+.themeSwatchWrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.themeSwatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.themeSwatch img {
+    max-width: 2.4rem;
+    width: 100%;
+    height: auto;
+}
+
+.themeCheck {
+    position: absolute;
+    right: -0.15rem;
+    bottom: -0.15rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cb-primary);
+    color: var(--cb-on-primary);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    font-size: 0.65rem;
+}
+
+.themeOption span:last-of-type {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #333;
 }
 
 @media (max-width: 500px) {
