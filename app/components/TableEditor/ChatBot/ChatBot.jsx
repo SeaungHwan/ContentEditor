@@ -44,19 +44,29 @@ function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// "선택해주세요 피카"처럼 존댓말 명령형 뒤에 애교스러운 말버릇을 붙이면, 격식(존댓말)과 애교가
+// 충돌해서 오히려 더 어색해진다("선택해주세요 피카." 자체가 부자연스러움). 그래서 피카츄/고라파덕은
+// 먼저 존댓말 명령형(-해주세요/-하세요)을 반말(-해줘/-해)로 낮춘 뒤에 말버릇을 붙인다. 야돈의 "~양"은
+// 존댓말에 그대로 붙여도 자연스러운 별개의 어미 방식이라 이 변환이 필요 없다.
+function toCasualImperative(text) {
+    return text
+        .replace(/해\s?주세요([.!?]?)/g, '해줘$1')
+        .replace(/하세요([.!?]?)/g, '해$1');
+}
+
+// 문장 끝(마침표/느낌표/물음표)마다 캐릭터 특유의 짧은 말버릇을 끼워 넣는다. 문장 끝에 통째로
+// "\n\n피카피카!"를 새로 외치면 문맥과 안 어울려서, 문장 부호 바로 앞에 자연스럽게 붙인다.
+function attachSentenceTic(text, tic) {
+    if (/[.!?]/.test(text)) return text.replace(/([.!?])/g, ` ${tic}$1`);
+    return `${text} ${tic}`;
+}
+
 // 테마별 말투 — 원본 답변 텍스트는 그대로 두고(LLM 대화 이력에 캐릭터 말투가 섞이면 안 되므로),
-// 화면에 보여줄 때만 렌더링 시점에 씌운다. 야돈은 문장 끝(다/요/죠)마다 늘어지는 "~양"을 붙이고,
-// 피카츄/고라파덕은 원작에서 자기 울음소리만 반복하는 것처럼 답변 끝에 캐릭터 특유의 소리를 덧붙인다.
+// 화면에 보여줄 때만 렌더링 시점에 씌운다.
 function applyThemeSpeech(text, themeKey) {
-    if (themeKey === 'yadon') {
-        return text.replace(/(다|요|죠)(?=[.!?~]|\s|$)/g, '$1~양');
-    }
-    if (themeKey === 'pikachu') {
-        return `${text}\n\n피카피카! ⚡`;
-    }
-    if (themeKey === 'psyduck') {
-        return `${text}\n\n파덕파덕...? 🐥`;
-    }
+    if (themeKey === 'yadon') return text.replace(/(다|요|죠)(?=[.!?~]|\s|$)/g, '$1~양');
+    if (themeKey === 'pikachu') return attachSentenceTic(toCasualImperative(text), '피카');
+    if (themeKey === 'psyduck') return attachSentenceTic(toCasualImperative(text), '파덕');
     return text;
 }
 
