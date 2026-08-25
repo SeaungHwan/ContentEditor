@@ -50,7 +50,9 @@ function escapeRegExp(str) {
 // 존댓말에 그대로 붙여도 자연스러운 별개의 어미 방식이라 이 변환이 필요 없다.
 function toCasualImperative(text) {
     return text
+        .replace(/안녕하세요([.!?]?)/g, '안녕$1')
         .replace(/해\s?주세요([.!?]?)/g, '해줘$1')
+        .replace(/보세요([.!?]?)/g, '봐$1')
         .replace(/하세요([.!?]?)/g, '해$1');
 }
 
@@ -70,9 +72,23 @@ function applyThemeSpeech(text, themeKey) {
     return text;
 }
 
+// 최초 인사말도 답변과 동일한 말투 규칙을 타야 하는데, 원문에 <strong>도움말 챗봇</strong> 굵은 글씨가
+// 문장 중간에 끼어 있어 순수 문자열이 아니다. 굵은 부분을 자리표시자로 남겨 문장 전체를 하나로 취급해
+// 말투를 입힌 뒤, 그 자리표시자를 기준으로 다시 잘라 굵은 태그를 끼워 넣는다(굵은 부분 앞뒤로 나눠서
+// 각각 말투를 입히면 "안녕하세요"만 따로 떼어져 독립된 문장처럼 처리돼 문장이 끊겨 보인다).
+const GREETING_BOLD_PLACEHOLDER = "@@BOLD@@";
+const GREETING_TEMPLATE = `안녕하세요 ${GREETING_BOLD_PLACEHOLDER}입니다.\n아래 메뉴를 이용하거나 궁금한 내용을 직접 입력해보세요!`;
+
+function renderThemedGreeting(themeKey) {
+    const [before, after] = applyThemeSpeech(GREETING_TEMPLATE, themeKey).split(GREETING_BOLD_PLACEHOLDER);
+    return <>{before}<strong>도움말 챗봇</strong>{after}</>;
+}
+
 // 봇 답변을 한 번에 보여주지 않고 단어 단위로 순차 노출한다.
 // 토큰을 "단어+뒤따르는 공백/줄바꿈"으로 묶어야 join했을 때 원문의 띄어쓰기·줄바꿈이 그대로 보존된다.
-function AnimatedBotText({ text, onReveal, onComplete }) {
+// React.memo: 부모(ChatBot)가 입력창 타이핑 등으로 자주 리렌더될 때, 이미 다 노출된 과거 메시지까지
+// 매번 다시 마운트(=애니메이션 재시작)되지 않도록 text/onReveal/onComplete가 그대로면 건너뛴다.
+const AnimatedBotText = React.memo(function AnimatedBotText({ text, onReveal, onComplete }) {
     const tokens = useMemo(() => text.match(/\S+\s*|\s+/g) || [text], [text]);
     const [count, setCount] = useState(0);
 
@@ -94,7 +110,53 @@ function AnimatedBotText({ text, onReveal, onComplete }) {
     }, [tokens]);
 
     return tokens.slice(0, count).join('');
-}
+});
+
+// 봇 메시지 한 줄(타이핑 표시/답변/옵션). React.memo로 감싸서, 부모가 입력창 타이핑·isResponding
+// 토글 등으로 리렌더될 때 이 메시지의 props(message/theme/isResponding 등)가 실제로 바뀌지 않았다면
+// applyThemeSpeech(정규식 여러 번) · AnimatedBotText의 단어 분해를 다시 계산하지 않고 건너뛴다.
+const BotMessage = React.memo(function BotMessage({ message, theme, themeImage, isResponding, onReveal, onRevealComplete, onAskAnswer }) {
+    return (
+        <div className={styles.chatRow}>
+            <div className={styles.botAvatar}>
+                <img src={themeImage} alt="챗봇" />
+            </div>
+            <div className={styles.chatContent}>
+                {message.kind === 'typing' && (
+                    <div className={`${styles.botBubble} ${styles.typingBubble}`}>
+                        <div className={styles.typingDots}><span /><span /><span /></div>
+                    </div>
+                )}
+                {message.kind === 'text' && (
+                    <div className={styles.botBubble}>
+                        {message.isAI && (
+                            <span className={styles.aiTag}><i className="ri-sparkling-2-fill" /> AI 답변</span>
+                        )}
+                        <p className={styles.bubbleText}><AnimatedBotText text={applyThemeSpeech(message.text, theme)} onReveal={onReveal} onComplete={onRevealComplete} /></p>
+                    </div>
+                )}
+                {message.kind === 'options' && (
+                    <div className={styles.botBubble}>
+                        <p className={styles.bubbleText}>{applyThemeSpeech(message.text, theme)}</p>
+                        <div className={styles.optionList}>
+                            {message.options.map((topic) => (
+                                <button
+                                    key={topic.key}
+                                    className={styles.optionBtn}
+                                    type="button"
+                                    disabled={isResponding}
+                                    onClick={() => onAskAnswer(topic)}
+                                >
+                                    {topic.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+});
 
 function highlightMatch(text, query) {
     if (!query) return text;
@@ -340,6 +402,10 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
 
     const endDrag = useCallback(() => setIsDragging(false), []);
 
+    // AnimatedBotText의 onComplete로 넘기는 안정된 참조. 인라인 화살표(() => setIsResponding(false))를
+    // 그대로 넘기면 매 렌더 새 함수가 생겨 BotMessage의 React.memo가 무력화된다.
+    const handleRevealComplete = useCallback(() => setIsResponding(false), []);
+
     const handleQuickTopicClick = useCallback((topic) => {
         if (dragState.current.dragged) {
             dragState.current.dragged = false;
@@ -478,8 +544,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                             <div className={styles.chatContent}>
                                 <div className={styles.botBubble}>
                                     <p className={styles.bubbleText}>
-                                        안녕하세요 <strong>도움말 챗봇</strong>입니다.{'\n'}
-                                        아래 메뉴를 이용하거나 궁금한 내용을 직접 입력해보세요!
+                                        {renderThemedGreeting(theme)}
                                     </p>
                                 </div>
                                 <div className={styles.categoryGrid}>
@@ -509,47 +574,16 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                             }
 
                             return (
-                                <div
+                                <BotMessage
                                     key={message.id}
-                                    className={styles.chatRow}
-                                >
-                                    <div className={styles.botAvatar}>
-                                        <img src={themeInfo.image} alt="챗봇" />
-                                    </div>
-                                    <div className={styles.chatContent}>
-                                        {message.kind === 'typing' && (
-                                            <div className={`${styles.botBubble} ${styles.typingBubble}`}>
-                                                <div className={styles.typingDots}><span /><span /><span /></div>
-                                            </div>
-                                        )}
-                                        {message.kind === 'text' && (
-                                            <div className={styles.botBubble}>
-                                                {message.isAI && (
-                                                    <span className={styles.aiTag}><i className="ri-sparkling-2-fill" /> AI 답변</span>
-                                                )}
-                                                <p className={styles.bubbleText}><AnimatedBotText text={applyThemeSpeech(message.text, theme)} onReveal={scrollToBottom} onComplete={() => setIsResponding(false)} /></p>
-                                            </div>
-                                        )}
-                                        {message.kind === 'options' && (
-                                            <div className={styles.botBubble}>
-                                                <p className={styles.bubbleText}>{applyThemeSpeech(message.text, theme)}</p>
-                                                <div className={styles.optionList}>
-                                                    {message.options.map((topic) => (
-                                                        <button
-                                                            key={topic.key}
-                                                            className={styles.optionBtn}
-                                                            type="button"
-                                                            disabled={isResponding}
-                                                            onClick={() => askAnswer(topic)}
-                                                        >
-                                                            {topic.label}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                                    message={message}
+                                    theme={theme}
+                                    themeImage={themeInfo.image}
+                                    isResponding={isResponding}
+                                    onReveal={scrollToBottom}
+                                    onRevealComplete={handleRevealComplete}
+                                    onAskAnswer={askAnswer}
+                                />
                             );
                         })}
                     </div>
