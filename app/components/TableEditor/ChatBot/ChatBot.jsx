@@ -7,7 +7,7 @@
  *   - 기존 GuideModal(주의점 모달)·isGuideMode(호버 가이드)와 독립적으로 동작하며 서로 대체하지 않는다.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './ChatBot.module.css';
 import { CATEGORIES, ALL_TOPICS, QUICK_TOPIC_KEYS, getTopicAnswer } from './chatBotTopics';
 import { searchTopics } from './fuzzyMatch';
@@ -16,10 +16,36 @@ import { searchTopics } from './fuzzyMatch';
 const HISTORY_LIMIT = 6;
 
 const TYPING_DELAY = 700;
+const WORD_REVEAL_INTERVAL = 45;
+// 사용자 말풍선이 뜨는 즉시 봇 말풍선(타이핑 표시)이 같이 뜨면 부자연스러워 보여, 이 시간만큼 늦춰서 띄운다.
+const BOT_BUBBLE_DELAY = 500;
 const QUICK_TOPICS = QUICK_TOPIC_KEYS.map((key) => ALL_TOPICS.find((topic) => topic.key === key)).filter(Boolean);
 
 function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 봇 답변을 한 번에 보여주지 않고 단어 단위로 순차 노출한다.
+// 토큰을 "단어+뒤따르는 공백/줄바꿈"으로 묶어야 join했을 때 원문의 띄어쓰기·줄바꿈이 그대로 보존된다.
+function AnimatedBotText({ text, onReveal }) {
+    const tokens = useMemo(() => text.match(/\S+\s*|\s+/g) || [text], [text]);
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        setCount(0);
+        if (tokens.length === 0) return;
+        let i = 0;
+        const timer = setInterval(() => {
+            i += 1;
+            setCount(i);
+            onReveal?.();
+            if (i >= tokens.length) clearInterval(timer);
+        }, WORD_REVEAL_INTERVAL);
+        return () => clearInterval(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tokens]);
+
+    return tokens.slice(0, count).join('');
 }
 
 function highlightMatch(text, query) {
@@ -73,25 +99,29 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
 
     const respondWith = useCallback((builder) => {
         const typingId = nextId();
-        setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
-        scrollToBottom();
-
         setTimeout(() => {
-            setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...builder(), id: typingId, from: 'bot' } : m)));
+            setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
             scrollToBottom();
-        }, TYPING_DELAY);
+
+            setTimeout(() => {
+                setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...builder(), id: typingId, from: 'bot' } : m)));
+                scrollToBottom();
+            }, TYPING_DELAY);
+        }, BOT_BUBBLE_DELAY);
     }, [scrollToBottom]);
 
     // 규칙 기반 매칭이 실패했을 때만 쓰는 비동기 응답 경로 (LLM 폴백, /api/chat 호출)
     const respondWithAsync = useCallback((asyncBuilder) => {
         const typingId = nextId();
-        setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
-        scrollToBottom();
-
-        asyncBuilder().then((result) => {
-            setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
+        setTimeout(() => {
+            setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
             scrollToBottom();
-        });
+
+            asyncBuilder().then((result) => {
+                setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
+                scrollToBottom();
+            });
+        }, BOT_BUBBLE_DELAY);
     }, [scrollToBottom]);
 
     const askAI = useCallback(async (text, history) => {
@@ -330,7 +360,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                     </div>
 
                     <div className={styles.chatbotBody} ref={bodyRef}>
-                        <div className={styles.chatRow}>
+                        <div className={`${styles.chatRow} ${styles.staticRow}`}>
                             <div className={styles.botAvatar}>
                                 <img src="/chatbot/chatbot.png" alt="챗봇" />
                             </div>
@@ -385,7 +415,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                                                 {message.isAI && (
                                                     <span className={styles.aiTag}><i className="ri-sparkling-2-fill" /> AI 답변</span>
                                                 )}
-                                                <p className={styles.bubbleText}>{message.text}</p>
+                                                <p className={styles.bubbleText}><AnimatedBotText text={message.text} onReveal={scrollToBottom} /></p>
                                             </div>
                                         )}
                                         {message.kind === 'options' && (

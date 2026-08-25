@@ -198,10 +198,17 @@
     display: flex;
     gap: 0.5rem;
     align-items: flex-start;
+    animation: chatRowFadeIn 0.35s ease-out;
 }
 
 .chatRow.user {
     justify-content: flex-end;
+}
+
+/* 최초 진입 시 고정으로 보여주는 인사말 줄 — chatbotPage 자체의 열림 애니메이션과 겹치면
+   같은 순간에 두 transform이 함께 움직여 흔들리는 것처럼 보이므로 애니메이션에서 제외한다. */
+.chatRow.staticRow {
+    animation: none;
 }
 
 .botAvatar {
@@ -427,14 +434,10 @@
     }
 }
 
-.chatRow.botTyping {
-    animation: fadeIn 0.2s ease-in-out;
-}
-
-@keyframes fadeIn {
+@keyframes chatRowFadeIn {
     from {
         opacity: 0;
-        transform: translateY(0.2rem);
+        transform: translateY(0.9rem);
     }
 
     to {
