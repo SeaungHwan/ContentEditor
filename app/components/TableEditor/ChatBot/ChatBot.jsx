@@ -19,6 +19,9 @@ const TYPING_DELAY = 700;
 const WORD_REVEAL_INTERVAL = 45;
 // 사용자 말풍선이 뜨는 즉시 봇 말풍선(타이핑 표시)이 같이 뜨면 부자연스러워 보여, 이 시간만큼 늦춰서 띄운다.
 const BOT_BUBBLE_DELAY = 500;
+// 열리자마자 바로 팁이 뜨면 산만해서, 인사말을 한 번 읽을 시간을 주고 띄운다.
+const PROACTIVE_TIP_DELAY = 900;
+const PROACTIVE_TIP_TEXT = '이미 작성해두신 내용이 있으시네요. 표나 리스트가 원하는 대로 안 바뀌면 편하게 물어보세요!';
 const QUICK_TOPICS = QUICK_TOPIC_KEYS.map((key) => ALL_TOPICS.find((topic) => topic.key === key)).filter(Boolean);
 
 // 테마: 색상은 ChatBot.module.css의 --cb-* 변수로 전환된다. swatch1/2는 모달의 미리보기 원형용(실제 CSS
@@ -193,11 +196,7 @@ function nextId() {
     return messageSeq;
 }
 
-const ChatBot = React.memo(({ visible = true, onHide }) => {
-    // mounted: display:none 해제 여부 / open: 실제 열림 애니메이션(opacity·transform) 트리거
-    // 두 상태를 분리해야, "보이기 시작"과 "열림 애니메이션 시작" 사이에 브라우저가 한 프레임을
-    // 그려줘서 트랜지션이 재생된다(같은 렌더에서 한꺼번에 켜면 트랜지션 없이 바로 열린 것처럼 보임).
-    const [mounted, setMounted] = useState(false);
+const ChatBot = React.memo(({ visible = true, onHide, hasContent = false }) => {
     const [open, setOpen] = useState(false);
     const [theme, setTheme] = useState(readTheme);
     const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -212,8 +211,10 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
     const [isResponding, setIsResponding] = useState(false);
 
     const bodyRef = useRef(null);
-    const pageRef = useRef(null);
     const dragState = useRef({ startX: 0, scrollStart: 0, dragged: false });
+    // 세션당 한 번만: 편집기에 이미 내용이 있는 상태로 챗봇을 열면 먼저 팁을 건네는데, 열 때마다
+    // 반복되면 거슬리므로 이 세션에서 한 번 보여줬는지만 기억한다(새로고침하면 다시 보여줘도 무해함).
+    const proactiveTipShownRef = useRef(false);
 
     const scrollToBottom = useCallback(() => {
         requestAnimationFrame(() => {
@@ -226,46 +227,60 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         setSelectedIndex(-1);
     }, []);
 
-    // 닫을 때마다 대화 내역을 비워, 다음에 열었을 때 항상 최초 화면(카테고리 그리드)부터 시작하게 한다.
-    const resetConversation = useCallback(() => {
-        setMessages([]);
-        setInputValue('');
-        closeSuggestions();
-    }, [closeSuggestions]);
+    // "..." 타이핑 표시 말풍선을 typingId로 등록한다 — respondWith/respondWithAsync/선제 팁이 공유하는
+    // 공통 로직이라 헬퍼로 뺐다(세 곳 모두 "타이핑 표시 → 지연 → 실제 내용으로 교체" 형태가 동일했음).
+    const pushTypingPlaceholder = useCallback((typingId) => {
+        setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
+        scrollToBottom();
+    }, [scrollToBottom]);
+
+    // typingId 자리의 타이핑 표시를 최종 결과(result)로 교체한다.
+    const resolveTypingPlaceholder = useCallback((typingId, result) => {
+        setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
+        scrollToBottom();
+    }, [scrollToBottom]);
 
     const respondWith = useCallback((builder) => {
         const typingId = nextId();
         setIsResponding(true);
         setTimeout(() => {
-            setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
-            scrollToBottom();
+            pushTypingPlaceholder(typingId);
 
             setTimeout(() => {
                 const result = builder();
-                setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
-                scrollToBottom();
+                resolveTypingPlaceholder(typingId, result);
                 // text는 AnimatedBotText가 단어 단위로 계속 노출 중이므로, 그 노출이 끝날 때(onComplete)
                 // 잠금을 풀어야 한다. text가 아닌 종류(options 등)는 애니메이션이 없으니 바로 푼다.
                 if (result.kind !== 'text') setIsResponding(false);
             }, TYPING_DELAY);
         }, BOT_BUBBLE_DELAY);
-    }, [scrollToBottom]);
+    }, [pushTypingPlaceholder, resolveTypingPlaceholder]);
 
     // 규칙 기반 매칭이 실패했을 때만 쓰는 비동기 응답 경로 (LLM 폴백, /api/chat 호출)
     const respondWithAsync = useCallback((asyncBuilder) => {
         const typingId = nextId();
         setIsResponding(true);
         setTimeout(() => {
-            setMessages((prev) => [...prev, { id: typingId, from: 'bot', kind: 'typing' }]);
-            scrollToBottom();
+            pushTypingPlaceholder(typingId);
 
             asyncBuilder().then((result) => {
-                setMessages((prev) => prev.map((m) => (m.id === typingId ? { ...result, id: typingId, from: 'bot' } : m)));
-                scrollToBottom();
+                resolveTypingPlaceholder(typingId, result);
                 if (result.kind !== 'text') setIsResponding(false);
             });
         }, BOT_BUBBLE_DELAY);
-    }, [scrollToBottom]);
+    }, [pushTypingPlaceholder, resolveTypingPlaceholder]);
+
+    // 사용자가 묻기 전에 먼저 건네는 팁. respondWith와 달리 앞선 사용자 메시지가 없다.
+    const showProactiveTip = useCallback((text) => {
+        const typingId = nextId();
+        setIsResponding(true);
+        setTimeout(() => {
+            pushTypingPlaceholder(typingId);
+            setTimeout(() => {
+                resolveTypingPlaceholder(typingId, { kind: 'text', text });
+            }, TYPING_DELAY);
+        }, PROACTIVE_TIP_DELAY);
+    }, [pushTypingPlaceholder, resolveTypingPlaceholder]);
 
     const askAI = useCallback(async (text, history) => {
         let res;
@@ -443,18 +458,29 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         setIsThemeModalOpen(false);
     }, []);
 
-    // 열기: 먼저 보이게(mounted) 한 뒤, 두 프레임 뒤에 open을 켜서 닫힌 상태 -> 열린 상태로
-    // 트랜지션이 재생되게 한다(reflow 없이 같은 프레임에서 켜면 애니메이션 없이 바로 열려버린다).
+    // 두 프레임 뒤에 open을 켜서 닫힌 상태 -> 열린 상태로 트랜지션이 재생되게 한다(reflow 없이
+    // 같은 프레임에서 바로 켜면 브라우저가 시작/끝 스타일을 하나로 합쳐버려 트랜지션 없이 바로 열린
+    // 것처럼 보인다).
     const openChat = useCallback(() => {
-        setMounted(true);
         requestAnimationFrame(() => {
             requestAnimationFrame(() => setOpen(true));
         });
         scrollToBottom();
-    }, [scrollToBottom]);
 
-    // 닫기: opacity/transform을 먼저 닫힌 상태로 트랜지션시키고,
-    // 트랜지션이 끝난 뒤(handlePageTransitionEnd) display:none 상태로 되돌린다.
+        // 편집기에 이미 내용이 있는 상태로 열었다면, 물어보기 전에 먼저 관련 팁을 건넨다(세션당 한 번).
+        // 편집기 화면 자체에는 배지 등 아무것도 띄우지 않으므로, 기존 사용자의 작업 흐름에는 영향 없다.
+        if (hasContent && !proactiveTipShownRef.current) {
+            proactiveTipShownRef.current = true;
+            showProactiveTip(PROACTIVE_TIP_TEXT);
+        }
+    }, [scrollToBottom, hasContent, showProactiveTip]);
+
+    // 닫기: opacity/visibility/transform을 닫힌 상태로 트랜지션시킨다. visibility는 열림->닫힘일 때
+    // transition-duration이 끝날 때까지 자동으로 미뤄지는 CSS 기본 동작이라, 트랜지션이 끝나길 기다렸다가
+    // 별도로 처리해줄 게 없다(예전엔 여기서 display:none으로 되돌리는 후속 처리가 필요했지만,
+    // display:none을 더 이상 안 써서 그 처리 자체가 필요 없어졌다 — 대화 내역이 더 이상 닫을 때
+    // 초기화되지 않는데, display:none↔flex 전환이 남아있던 메시지 줄들의 CSS 애니메이션까지 "새로
+    // 삽입된 것"처럼 매번 재생시켜 열 때마다 떨려 보였던 문제이기도 했다).
     const closeChat = useCallback(() => setOpen(false), []);
 
     const toggleChat = useCallback(() => {
@@ -465,23 +491,22 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
         }
     }, [open, closeChat, openChat]);
 
-    const handlePageTransitionEnd = useCallback((e) => {
-        if (e.target !== pageRef.current) return;
-        if (!open) {
-            setMounted(false);
-            resetConversation();
-        }
-    }, [open, resetConversation]);
-
-    // 툴바 토글이나 아이콘 숨김 배지로 위젯 전체가 숨겨질 때는 닫힘 트랜지션이 재생되지 않으므로
-    // (visible=false가 되는 즉시 렌더가 null을 반환), transitionend를 기다리지 않고 즉시 초기화한다.
+    // 툴바 토글이나 아이콘 숨김 배지로 위젯 전체를 숨기는 건, 패널만 접는 일반 닫기와 달리
+    // "완전히 그만두기"에 해당하므로 이때만 대화 내역을 초기화한다(일반 닫기는 대화를 유지).
+    // visible=false가 되는 즉시 렌더가 null을 반환해 닫힘 트랜지션이 재생되지 않으므로,
+    // transitionend를 기다리지 않고 여기서 바로 접는다. 이때는 컴포넌트 트리 자체가
+    // 언마운트되므로(early return null), 답변이 노출되는 도중이었다면 그 애니메이션의
+    // onComplete가 못 불려 isResponding이 영원히 true로 남을 수 있어 방어적으로 함께 풀어준다.
     useEffect(() => {
         if (!visible) {
             setOpen(false);
-            setMounted(false);
-            resetConversation();
+            setIsResponding(false);
+            setMessages([]);
+            setInputValue('');
+            closeSuggestions();
+            proactiveTipShownRef.current = false;
         }
-    }, [visible, resetConversation]);
+    }, [visible, closeSuggestions]);
 
     if (!visible) return null;
 
@@ -499,11 +524,7 @@ const ChatBot = React.memo(({ visible = true, onHide }) => {
                 </button>
             </div>
 
-            <div
-                ref={pageRef}
-                className={`${styles.chatbotPage} ${mounted ? styles.isVisible : ''} ${open ? styles.isOpen : ''}`}
-                onTransitionEnd={handlePageTransitionEnd}
-            >
+            <div className={`${styles.chatbotPage} ${open ? styles.isOpen : ''}`}>
                 <div className={styles.chatbotContainer}>
                     <div className={styles.chatbotHeader}>
                         <div className={styles.chatbotHeaderLeft}>

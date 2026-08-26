@@ -985,7 +985,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             </div>
 
             {isGuideMode && <div className={layout.guideWrap}/>}
-            <ChatBot visible={isChatBotVisible} onHide={handleHideChatBot} />
+            <ChatBot visible={isChatBotVisible} onHide={handleHideChatBot} hasContent={!!content.trim()} />
             {toast.show && <div key={toast.id} className="toast-popup">{toast.message}</div>}
             {modals.preview && <PreviewModal content={content} config={config} widthString={formattedWidthString} onClose={handlePreviewClose} layout={layout} fadeStyle={getFadeStyle('preview')} />}
             {modals.guide && <GuideModal onClose={handleGuideClose} layout={layout} fadeStyle={getFadeStyle('guide')} />}
