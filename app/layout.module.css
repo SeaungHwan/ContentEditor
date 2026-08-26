@@ -23,7 +23,9 @@
 
 /* 가이드 */
 .guideBtn {padding: 0;}
-.guide {display: flex; flex-direction: column; justify-content: center; align-items: center;}
+.guide {display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.guide i {font-size: 1rem;}
+.guide img {min-width: 1rem;}
 .guideClose {position: relative; box-shadow:0 0 0 0.1875rem #ff0051,0 0.25rem 0.625rem rgba(0,0,0,0.3) ; border-radius: 50%;}
 
 
