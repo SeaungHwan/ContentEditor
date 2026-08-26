@@ -217,6 +217,11 @@ const JoditCustomEditor = React.memo(forwardRef(({ initialData, onChange, onPrev
                             newCell.setAttribute(attr.name, attr.value);
                         });
 
+                        // 정리(cleanup) 시 tbody 안 셀은 자동으로 td로 되돌리는 로직이 있어서(tableFormatters.js
+                        // convertCellRole), 이 버튼으로 직접 th로 바꾼 셀은 표시를 남겨 그 로직이 건드리지 않게 한다.
+                        if (newTagName === 'th') newCell.setAttribute('data-th-manual', '1');
+                        else newCell.removeAttribute('data-th-manual');
+
                         // Jodit의 다중 셀 선택(Table.selected)이 교체로 사라질 옛 셀을
                         // 계속 들고 있으면, 팝업이 닫히며 그 상태를 정리하다가 초점이
                         // 엉뚱한 행으로 튀는 버그가 있었다. 교체 전에 미리 제거한다.

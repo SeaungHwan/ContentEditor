@@ -141,8 +141,11 @@ export const traverseAndClean = (element, isColorMode, isColorClassMode = true, 
     attributes.forEach(attr => {
         const attrName = attr.name.toLowerCase();
         
-        if (isLink && (attrName === 'href' || attrName === 'target' || attrName === 'title')) return; 
+        if (isLink && (attrName === 'href' || attrName === 'target' || attrName === 'title')) return;
         if (attrName === 'data-local-config' || attrName === 'data-local-colwidths') return;
+        // tableFormatters.js의 convertCellRole이 이 속성을 보고 tbody 안 수동 th 변환을 보존하는데,
+        // 그 판단은 이 함수(traverseAndClean) 다음 단계에서 이뤄지므로 여기서 먼저 지워지면 안 된다.
+        if (attrName === 'data-th-manual') return;
 
         if (attrName === 'bgcolor' && !element.style.backgroundColor) element.style.backgroundColor = attr.value;
         if (attrName === 'align' && !element.style.textAlign) element.style.textAlign = attr.value;

@@ -54,7 +54,7 @@ export const RE_WHITESPACE = /[\s\u00A0\u200B-\u200D\uFEFF]/g;
 
 // data attrs to strip before content leaves the editor (onChange/copy)
 // TEMP_ATTRS_SELECTOR: combined selector so querySelectorAll runs once instead of once per attribute
-export const TEMP_ATTRS = ['data-local-config', 'data-local-colwidths', 'data-temp-id', 'data-origin-html', 'data-hcand-id', 'data-hconv-id'];
+export const TEMP_ATTRS = ['data-local-config', 'data-local-colwidths', 'data-temp-id', 'data-origin-html', 'data-hcand-id', 'data-hconv-id', 'data-th-manual'];
 export const TEMP_ATTRS_SELECTOR = TEMP_ATTRS.map(a => `[${a}]`).join(',');
 
 // 이미지 박스 치환(수동 버튼 + cleanTableHtml 자동 치환) 공용 더미 이미지.

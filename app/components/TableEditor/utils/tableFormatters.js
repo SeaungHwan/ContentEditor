@@ -167,6 +167,10 @@ const convertCellRole = (cell, scopeValue) => {
         } else {
             cell.setAttribute('scope', scopeValue);
         }
+    } else if (cell.hasAttribute('data-th-manual')) {
+        // TD/TH 전환 버튼으로 사용자가 직접 th로 지정한 셀(주로 tbody 안)은, 헤더 범위 밖이라도
+        // 자동으로 td로 되돌리지 않는다. 자동 로직이 부여하는 scope만 없을 뿐, th 자체는 유지.
+        if (cell.tagName.toLowerCase() === 'th') cell.removeAttribute('scope');
     } else {
         if (cell.tagName.toLowerCase() === 'th') {
             const td = document.createElement('td');
