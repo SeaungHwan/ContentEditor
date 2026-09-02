@@ -11,6 +11,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './ChatBot.module.css';
 import { CATEGORIES, ALL_TOPICS, QUICK_TOPIC_KEYS, getTopicAnswer } from './chatBotTopics';
 import { searchTopics } from './fuzzyMatch';
+import {
+    TABLE_SUMMARY_LLM_CHAR_LIMIT,
+    extractSummaryTables,
+    estimateGridsChars,
+    gridsToText,
+    buildLocalSummary,
+    isTableSummaryRequest,
+} from './tableSummaryUtils';
 
 // LLM에 함께 보낼 최근 대화 턴 수(사용자+봇 합산 메시지 개수, 토큰 사용량을 억제하기 위한 상한)
 const HISTORY_LIMIT = 6;
@@ -196,7 +204,7 @@ function nextId() {
     return messageSeq;
 }
 
-const ChatBot = React.memo(({ visible = true, onHide, hasContent = false }) => {
+const ChatBot = React.memo(({ visible = true, onHide, hasContent = false, getSummaryTarget }) => {
     const [open, setOpen] = useState(false);
     const [theme, setTheme] = useState(readTheme);
     const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
@@ -310,6 +318,37 @@ const ChatBot = React.memo(({ visible = true, onHide, hasContent = false }) => {
         return { kind: 'text', text: errorMessages[errorBody.error] || fallback };
     }, []);
 
+    // "표 요약해줘" 요청 전용 경로. 데이터가 작으면 LLM에게 자연스러운 문장 요약을 맡기고,
+    // 크면 무료 LLM 호출 한도를 아끼기 위해 로컬에서 구조(행/열/헤더)만 계산해 알려준다.
+    const askTableSummary = useCallback(async () => {
+        const target = getSummaryTarget?.();
+        if (!target) return { kind: 'text', text: '지금은 요약할 내용을 가져올 수 없어요.' };
+
+        const tables = extractSummaryTables(target.html, target.scope);
+        if (!tables.length) {
+            return { kind: 'text', text: target.scope === 'table' ? '커서가 있는 표를 찾을 수 없어요.' : '에디터에 표가 없어요.' };
+        }
+
+        if (estimateGridsChars(tables) > TABLE_SUMMARY_LLM_CHAR_LIMIT) {
+            return { kind: 'text', text: buildLocalSummary(tables) };
+        }
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tableText: gridsToText(tables) }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return { kind: 'text', text: data.reply, isAI: true };
+            }
+        } catch {
+            // 네트워크 오류 시 로컬 요약으로 폴백
+        }
+        return { kind: 'text', text: buildLocalSummary(tables) };
+    }, [getSummaryTarget]);
+
     const askAnswer = useCallback((topic) => {
         if (isResponding) return;
         setMessages((prev) => [...prev, { id: nextId(), from: 'user', kind: 'text', text: topic.label }]);
@@ -344,6 +383,12 @@ const ChatBot = React.memo(({ visible = true, onHide, hasContent = false }) => {
         setInputValue('');
         scrollToBottom();
 
+        // "요약"이 들어간 질문은 FAQ 매칭보다 먼저 표 요약 전용 경로로 보낸다.
+        if (isTableSummaryRequest(text)) {
+            respondWithAsync(() => askTableSummary());
+            return;
+        }
+
         // 라벨(짧은 항목명)만 대상으로 매칭한다. 답변 본문까지 포함하면 문단이 길어진 지금은
         // "설정", "표"처럼 흔한 단어가 거의 모든 답변에 우연히 등장해 엉뚱한 항목들이
         // 무더기로 걸리고, 정작 AI에게 물어봐야 할 자유 질문이 AI까지 가지 못하게 된다.
@@ -365,7 +410,7 @@ const ChatBot = React.memo(({ visible = true, onHide, hasContent = false }) => {
 
         // 가이드에 없는 질문 -> 서버(/api/chat)를 거쳐 LLM(Groq -> Gemini 폴백)에게 물어본다.
         respondWithAsync(() => askAI(text, history));
-    }, [isResponding, inputValue, messages, closeSuggestions, respondWith, respondWithAsync, askAI, scrollToBottom]);
+    }, [isResponding, inputValue, messages, closeSuggestions, respondWith, respondWithAsync, askAI, askTableSummary, scrollToBottom]);
 
     const handleInputChange = useCallback((e) => {
         const value = e.target.value;

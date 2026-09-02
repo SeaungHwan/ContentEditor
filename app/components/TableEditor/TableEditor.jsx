@@ -114,6 +114,7 @@ function TableEditor({ initialHtml = '', onChange }) {
     const [selectedTableNode, setSelectedTableNode] = useState(null);
     const [isEqualColWidths, setIsEqualColWidths] = useState(false);
     const selectedTableNodeRef = useLatestRef(selectedTableNode);
+    const contentRef = useLatestRef(content);
     const editorComponentRef = useRef(null);
     const editBoxRef = useRef(null);
     const tableBtnRef = useRef(null);
@@ -896,6 +897,18 @@ function TableEditor({ initialHtml = '', onChange }) {
             cell.textContent.replace(RE_WHITESPACE, '') === '';
     })();
 
+    // 챗봇 "표 요약해줘" 요청 대상. 커서가 표 안에 있으면 그 표 하나만, 아니면 에디터 전체를 넘긴다.
+    // content/selectedTableNode를 직접 넘기지 않고 ref로 최신값만 읽는 이유는, ChatBot이 매 렌더마다
+    // 재생성되는 함수를 props로 받으면 React.memo가 무력화돼 타이핑할 때마다 재렌더되기 때문이다.
+    const getSummaryTarget = useCallback(() => {
+        const node = selectedTableNodeRef.current;
+        if (node) {
+            const tableEl = node.tagName === 'TABLE' ? node : node.querySelector('table');
+            if (tableEl) return { scope: 'table', html: tableEl.outerHTML };
+        }
+        return { scope: 'document', html: contentRef.current || '' };
+    }, [selectedTableNodeRef, contentRef]);
+
     return (
         <div className={layout.tableWrap} suppressHydrationWarning>
             <div className={layout.contBox}>
@@ -985,7 +998,7 @@ function TableEditor({ initialHtml = '', onChange }) {
             </div>
 
             {isGuideMode && <div className={layout.guideWrap}/>}
-            <ChatBot visible={isChatBotVisible} onHide={handleHideChatBot} hasContent={!!content.trim()} />
+            <ChatBot visible={isChatBotVisible} onHide={handleHideChatBot} hasContent={!!content.trim()} getSummaryTarget={getSummaryTarget} />
             {toast.show && <div key={toast.id} className="toast-popup">{toast.message}</div>}
             {modals.preview && <PreviewModal content={content} config={config} widthString={formattedWidthString} onClose={handlePreviewClose} layout={layout} fadeStyle={getFadeStyle('preview')} />}
             {modals.guide && <GuideModal onClose={handleGuideClose} layout={layout} fadeStyle={getFadeStyle('guide')} />}
