@@ -106,6 +106,26 @@ export const MARKER_TYPES = {
     'special': /^\s*(?:[㉠-㉭㈎-㈛㉮-㉻\u2460-\u24FF\u2776-\u2793])\s*/,
 };
 
+// 한국 공문서 개요 표기 관례상 마커의 상대적 상위/하위 순서(숫자가 작을수록 상위 레벨:
+// 로마자 > 숫자 "1." > 한글 "가." > 숫자 "1)" > 한글 "가)" > 숫자 "(1)" > 한글 "(가)" > 원형).
+// listExtractors.js의 리스트 생성 로직이 이 순위를 "경계"로 써서, 더 상위 레벨 마커가 열려있는
+// 동안에는 그보다 하위였던 이전 문맥으로 건너뛰어 재접속하지 않게 막는다 — 표가 리스트를 여러
+// 조각으로 끊었다가 다시 이어붙일 때, "나."(상위) 뒤에 오는 "1)"(하위)이 "나." 이전에 있던
+// 엉뚱한 "1)" 목록의 형제로 잘못 되돌아가 버리는 문제를 막기 위함. 여기 없는 타입
+// (bullet/special/square-bracket/paren-english 등)은 순위 비교 대상에서 제외되어 기존 동작 그대로
+// 유지된다(둘 중 하나라도 순위가 없으면 경계 검사 자체를 건너뛴다).
+export const MARKER_RANK = {
+    'roman-dot': 0,
+    'decimal-dot': 1,
+    'multi-level': 1,
+    'hangul-dot': 2,
+    'paren-decimal-single': 3,
+    'paren-hangul-single': 4,
+    'paren-decimal-double': 5,
+    'paren-hangul-double': 6,
+    'circle-char': 7,
+};
+
 // 제외 정리
 export const CLEANUP_REGEX = {
     multipleBrs: /(?:<br\s*\/?>\s*(?:&nbsp;|\u00A0|\s)*){2,}/gi,

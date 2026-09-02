@@ -46,7 +46,7 @@
  *     - Phase 4: 잔여 Ignore span unwrap
  */
 
-import { MARKER_TYPES, EXCLUDE_MARKER_REGEXES, HWP_CHAR_MAP, HWP_CHAR_REGEX, UL_NONE_VALUE, RE_WHITESPACE, convertCircleToArabic, DEFAULT_NUM_CLASS } from './constants';
+import { MARKER_TYPES, MARKER_RANK, EXCLUDE_MARKER_REGEXES, HWP_CHAR_MAP, HWP_CHAR_REGEX, UL_NONE_VALUE, RE_WHITESPACE, convertCircleToArabic, DEFAULT_NUM_CLASS } from './constants';
 import { removeLeadingCharsFromDOM } from './htmlCleaners';
 
 
@@ -581,6 +581,15 @@ export const processCellContent = (cell, keepMarker, isOuterText = false, tit1 =
             if (isSameLevel) { currentContext.ul.appendChild(li); } else {
                 let foundParentIndex = -1;
                 for (let j = contextStack.length - 2; j >= 0; j--) {
+                    // 지나쳐야 할 바로 위 문맥(처음엔 currentContext 자신)이 markerType보다 상위
+                    // 레벨이면, 그 경계를 넘어 더 아래(하위였던) 조상과 다시 이어붙이지 않는다.
+                    const skippedFrame = contextStack[j + 1];
+                    if (skippedFrame.markerType !== markerType &&
+                        MARKER_RANK[skippedFrame.markerType] !== undefined &&
+                        MARKER_RANK[markerType] !== undefined &&
+                        MARKER_RANK[skippedFrame.markerType] < MARKER_RANK[markerType]) {
+                        break;
+                    }
                     if (contextStack[j].markerType === markerType && contextStack[j].ul.tagName.toLowerCase() === targetTagName && (markerType !== 'bullet' || contextStack[j].markerChar === markerInfo.char)) {
                         foundParentIndex = j; break;
                     }

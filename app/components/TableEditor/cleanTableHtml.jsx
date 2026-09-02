@@ -123,14 +123,29 @@ const _processLinks = (container, config) => {
     });
 };
 
-// 텍스트에서 마커 타입 감지 (processCellContent의 로직과 동일)
-const _detectMarkerType = (text) => {
-    const s = (text || '').trim();
+// 텍스트(또는 li 엘리먼트)에서 마커 타입 감지 (정규식 부분은 processCellContent의 로직과 동일).
+// li 엘리먼트가 주어지면 텍스트 정규식 매치가 실패했을 때 span 마커 폴백을 추가로 시도한다 —
+// listExtractors.js가 OL로 변환할 때(targetTagName === 'ol') 마침표/괄호를 떼어내고 글자만
+// <span class="num">가</span> 안에 남기므로(예: "가." → "가"), 이미 변환된 li는 textContent가
+// "가 진로적성..."처럼 punctuation 없이 시작해 hangul-dot/paren-hangul-single 등 punctuation
+// 의존 정규식이 더 이상 매치되지 않는다. 표 때문에 리스트가 끊긴 뒤 재배치하는 로직(아래
+// _findAncestorListByMarker 등)은 항상 "이미 변환된" li끼리 비교하므로 이 폴백이 필요하다.
+const _detectMarkerType = (li) => {
+    const text = typeof li === 'string' ? li : (li?.textContent || '');
+    const s = text.trim();
     if (!s) return null;
     if (EXCLUDE_MARKER_REGEXES.some(r => r.test(s))) return null;
     for (const type in MARKER_TYPES) {
         const m = s.match(MARKER_TYPES[type]);
         if (m && s.substring(m[0].length).trim()) return type;
+    }
+    if (li && typeof li === 'object' && li.nodeType === 1 && li.firstElementChild?.tagName === 'SPAN') {
+        const glyph = (li.firstElementChild.textContent || '').trim();
+        if (!glyph) return null;
+        if (/^[가나다라마바사아자차카타파하ㄱ-ㅎ]$/.test(glyph)) return 'span:hangul';
+        if (/^[a-zA-Z]$/.test(glyph)) return 'span:english';
+        if (/^[IVXivx]+$/.test(glyph)) return 'span:roman';
+        if (/^\d+$/.test(glyph)) return 'span:decimal';
     }
     return null;
 };
@@ -156,13 +171,46 @@ const _findAncestorListByMarker = (startList, rootList, markerType) => {
             const parent = el.parentElement;
             if (!parent || (parent.tagName !== 'UL' && parent.tagName !== 'OL')) break;
             const firstLi = Array.from(parent.children).find(c => c.tagName === 'LI');
-            if (firstLi && _detectMarkerType(firstLi.textContent) === markerType) return parent;
+            if (firstLi && _detectMarkerType(firstLi) === markerType) return parent;
             el = parent.parentElement;
         } else {
             el = el.parentElement;
         }
     }
     return null;
+};
+
+// afterEl(표 뒤에 이어지던, 독립적으로 다시 만들어진 조각) 내부에 listA 자신과 같은 마커
+// 타입의 항목이 깊이 상관없이 통째로 갇혀 있으면(예: "가./나./다..." 중 "나."가 그 조각 안의
+// "사)" -> "7)" 밑에 새 하위 리스트로 묻혀버린 경우) 찾아서 listA의 형제로 꺼내온다. 표가 리스트를
+// 여러 조각으로 끊으면 각 조각은 독립적으로 새로 만들어지며 서로 마커 문맥을 공유하지 않기
+// 때문에, 원래 listA와 같은 레벨이어야 할 항목이 그 조각 내부 어딘가에 엉뚱하게 중첩되어 버린다.
+// 아래 두 병합 로직(afterEl 전체를 한 번에 옮기는 처리)은 afterEl의 "맨 위" 항목 타입만 보고
+// 판단하므로, 그보다 깊이 묻힌 다른 타입의 항목은 그대로 따라 들어가 버리는 문제가 있었다.
+const _promoteBuriedSameLevelItems = (afterEl, listA) => {
+    const listAFirstLi = Array.from(listA.children).find(c => c.tagName === 'LI');
+    const topMarkerType = listAFirstLi && _detectMarkerType(listAFirstLi);
+    if (!topMarkerType) return;
+
+    const found = [];
+    const walk = (el) => {
+        Array.from(el.children).forEach(child => {
+            if (child.tagName === 'OL' || child.tagName === 'UL') {
+                Array.from(child.children).filter(c => c.tagName === 'LI').forEach(li => {
+                    if (_detectMarkerType(li) === topMarkerType) found.push({ li, parentList: child });
+                    else walk(li);
+                });
+            } else {
+                walk(child);
+            }
+        });
+    };
+    walk(afterEl);
+
+    found.forEach(({ li, parentList }) => {
+        listA.appendChild(li);
+        if (!parentList.querySelector('li')) parentList.remove();
+    });
 };
 
 // wrapperLis(번호 없는 래퍼 li들, 예: "행정안전부...") 안에 번호형 하위 리스트가 숨어 있으면
@@ -178,10 +226,10 @@ const _extractPromotableAndNest = (wrapperLis, wrapperTagName, anchorLi, baseLis
             .filter(c => c.tagName === 'OL' || c.tagName === 'UL')
             .forEach(sub => {
                 const firstSubLi = Array.from(sub.children).find(c => c.tagName === 'LI');
-                const subMarker = firstSubLi && _detectMarkerType(firstSubLi.textContent || '');
+                const subMarker = firstSubLi && _detectMarkerType(firstSubLi);
                 if (!subMarker) return;
                 const toExtract = Array.from(sub.children)
-                    .filter(c => c.tagName === 'LI' && _detectMarkerType(c.textContent || '') === subMarker);
+                    .filter(c => c.tagName === 'LI' && _detectMarkerType(c) === subMarker);
                 if (!toExtract.length) return;
                 toExtract.forEach(item => { sub.removeChild(item); toPromote.push({ item, subMarker }); });
                 if (!sub.querySelector('li')) sub.remove();
@@ -454,9 +502,10 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     }
                     const afterEl = children[afterIdx];
                     if (afterEl && (afterEl.tagName === 'OL' || afterEl.tagName === 'UL')) {
+                        _promoteBuriedSameLevelItems(afterEl, listA);
                         const firstLiOfB = Array.from(afterEl.children).find(c => c.tagName === 'LI');
-                        const bMarker = _detectMarkerType((firstLiOfB || {}).textContent || '');
-                        const deepLastMarker = _detectMarkerType((deepLis[deepLis.length - 1] || {}).textContent || '');
+                        const bMarker = _detectMarkerType(firstLiOfB);
+                        const deepLastMarker = _detectMarkerType(deepLis[deepLis.length - 1]);
                         const findPromoteTarget = (markerType) => (markerType === deepLastMarker
                             ? deepestList
                             : (_findAncestorListByMarker(deepestList, listA, markerType) || listA));
@@ -499,7 +548,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     if (listA.tagName !== 'OL' && listA.tagName !== 'UL') continue;
                     const lisA = Array.from(listA.children).filter(c => c.tagName === 'LI');
                     if (!lisA.length) continue;
-                    const markerA = _detectMarkerType(lisA[0].textContent || '');
+                    const markerA = _detectMarkerType(lisA[0]);
                     if (!markerA) continue;
 
                     // listA 이후 비리스트·비테이블 요소 수집 후 다음 리스트 탐색
@@ -523,12 +572,12 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
 
                     // listB 내에 markerA와 같은 번호형 li(직접 또는 비번호 li의 sub-li)가 있는지 확인
                     const hasPromotable = lisBArr.some(li => {
-                        if (_detectMarkerType(li.textContent || '') === markerA) return true;
+                        if (_detectMarkerType(li) === markerA) return true;
                         return Array.from(li.children)
                             .filter(c => c.tagName === 'OL' || c.tagName === 'UL')
                             .some(sub => {
                                 const firstLi = Array.from(sub.children).find(c => c.tagName === 'LI');
-                                return firstLi && _detectMarkerType(firstLi.textContent || '') === markerA;
+                                return firstLi && _detectMarkerType(firstLi) === markerA;
                             });
                     });
                     if (!hasPromotable) continue;
@@ -543,7 +592,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
 
                     const toPromote = [];
                     lisBArr.forEach(li => {
-                        if (_detectMarkerType(li.textContent || '') === markerA) {
+                        if (_detectMarkerType(li) === markerA) {
                             toPromote.push(li); return;
                         }
                         // 비번호 li: 내부 번호형 sub-li 추출 후 비번호 li는 sub-list로
@@ -551,7 +600,7 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                             .filter(c => c.tagName === 'OL' || c.tagName === 'UL')
                             .forEach(sub => {
                                 const toExtract = Array.from(sub.children)
-                                    .filter(c => c.tagName === 'LI' && _detectMarkerType(c.textContent || '') === markerA);
+                                    .filter(c => c.tagName === 'LI' && _detectMarkerType(c) === markerA);
                                 toExtract.forEach(item => { sub.removeChild(item); toPromote.push(item); });
                                 if (!sub.querySelector('li')) sub.remove();
                             });
@@ -563,6 +612,36 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     toPromote.forEach(li => listA.appendChild(li));
                     listB.remove();
                     children = Array.from(resultWrapper.children); // 변경 후 갱신
+                    changed = true;
+                    break;
+                }
+                if (!changed) break;
+            }
+        })();
+
+        // 표가 리스트 항목 안 깊숙이(중첩 리스트의 li 안 등) 묻혀 있으면, 그 표를 포함한 바깥
+        // 리스트 전체가 위쪽 메인 루프에서 통째로 테이블 그룹으로 분류돼(node.querySelector('table')가
+        // 깊이 제한 없이 찾아내므로) 뒤에 이어지던 나머지 li들과의 사이에 아무 것도 남지 않는 경우가
+        // 있다. 위 두 재배치 패스는 그 사이에 테이블이나 다른 요소가 최소 하나 있는 경우만 다루므로,
+        // 완전히 맞닿은 동일 클래스의 OL/UL 형제는 병합되지 않고 두 개로 남는다. 그런 쌍을 그대로 이어붙인다.
+        (() => {
+            let children = Array.from(resultWrapper.children);
+            let _iterations = 0;
+            while (_iterations < 20) {
+                let changed = false;
+                _iterations++;
+                for (let i = 0; i < children.length - 1; i++) {
+                    const listA = children[i];
+                    const listB = children[i + 1];
+                    if (listA.tagName !== 'OL' && listA.tagName !== 'UL') continue;
+                    if (listB.tagName !== listA.tagName) continue;
+                    if ((listA.className || '') !== (listB.className || '')) continue;
+                    const lisB = Array.from(listB.children).filter(c => c.tagName === 'LI');
+                    if (!lisB.length) continue;
+
+                    lisB.forEach(li => listA.appendChild(li));
+                    listB.remove();
+                    children = Array.from(resultWrapper.children);
                     changed = true;
                     break;
                 }
