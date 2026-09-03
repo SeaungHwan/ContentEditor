@@ -468,10 +468,16 @@ export const cleanTableHtml = (htmlString, config, colWidths = '') => {
                     if (listA.tagName !== 'OL' && listA.tagName !== 'UL') continue;
 
                     // 다음 테이블 탐색 (의미없는 노드는 건너뜀)
+                    // el이 UL/OL이면 테이블 후보에서 제외한다: 이 while 루프는 한 번의 병합으로 끝나지
+                    // 않고 여러 차례 재실행되는데, 앞선 반복에서 다른 리스트(afterEl)의 표가 이미 그
+                    // 리스트 내부 li 깊숙이 병합된 뒤라면 el.querySelector('table')가 그 표를 찾아내
+                    // "리스트 통째로가 표"인 것처럼 오인해 listA의 lastLi 안으로 리스트 전체를
+                    // 옮겨버린다(원래 있어야 할 최상위 형제 리스트가 엉뚱하게 깊이 중첩되는 버그).
                     let tableIdx = -1;
                     for (let j = i + 1; j < children.length; j++) {
                         const el = children[j];
-                        if (el.tagName === 'TABLE' || (el.nodeType === 1 && el.querySelector && el.querySelector('table'))) {
+                        if (el.tagName !== 'UL' && el.tagName !== 'OL' &&
+                            (el.tagName === 'TABLE' || (el.nodeType === 1 && el.querySelector && el.querySelector('table')))) {
                             tableIdx = j; break;
                         }
                         if (el.textContent.replace(RE_WHITESPACE, '') !== '') break;
